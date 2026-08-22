@@ -1,21 +1,22 @@
-#ifndef X2_IGB_H
-#define X2_IGB_H
+#ifndef ALCHEMY_IGB_H
+#define ALCHEMY_IGB_H
 
 #include <stddef.h>
 #include <stdint.h>
 
 enum {
-    X2_IGB_PFMT_L8 = 0,
-    X2_IGB_PFMT_A8 = 1,
-    X2_IGB_PFMT_RGB888 = 5,
-    X2_IGB_PFMT_RGBA8888 = 7,
-    X2_IGB_PFMT_RGBA5551 = 8,
-    X2_IGB_PFMT_RGBA4444 = 9,
-    X2_IGB_PFMT_RGB565 = 10,
-    X2_IGB_PFMT_RGB_DXT1 = 13,
-    X2_IGB_PFMT_RGBA_DXT1 = 14,
-    X2_IGB_PFMT_RGBA_DXT3 = 15,
-    X2_IGB_PFMT_RGBA_DXT5 = 16
+    ALCHEMY_IGB_PFMT_L8 = 0,
+    ALCHEMY_IGB_PFMT_A8 = 1,
+    ALCHEMY_IGB_PFMT_RGB888 = 5,
+    ALCHEMY_IGB_PFMT_RGBA8888 = 7,
+    ALCHEMY_IGB_PFMT_RGBA5551 = 8,
+    ALCHEMY_IGB_PFMT_RGBA4444 = 9,
+    ALCHEMY_IGB_PFMT_RGB565 = 10,
+    ALCHEMY_IGB_PFMT_RGB_DXT1 = 13,
+    ALCHEMY_IGB_PFMT_RGBA_DXT1 = 14,
+    ALCHEMY_IGB_PFMT_RGBA_DXT3 = 15,
+    ALCHEMY_IGB_PFMT_RGBA_DXT5 = 16,
+    ALCHEMY_IGB_PFMT_CLUT_INDEX8 = 1 << 16
 };
 
 typedef struct {
@@ -73,6 +74,14 @@ typedef struct {
 } igb;
 
 typedef struct {
+    int pixel_format;
+    int entries;
+    int bytes_per_entry;
+    const uint8_t *data;
+    size_t data_len;
+} igb_palette;
+
+typedef struct {
     int width, height;
     int num_components;
     int pixel_format;
@@ -82,6 +91,7 @@ typedef struct {
     const uint8_t *data;
     size_t data_len;
     char *name;
+    igb_palette palette;
 } igb_image;
 
 int igb_open(igb *f, const char *path);

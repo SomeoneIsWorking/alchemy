@@ -11,15 +11,16 @@ Alchemy is Raven/Vicarious Visions' engine. The games that matter here:
 | X-Men Legends II: Rise of Apocalypse | PC, Xbox, PS2, GameCube, PSP |
 | Marvel Ultimate Alliance | Xbox 360, PS2, Xbox, PS3, PSP, PC |
 
-This repo exists because those two games span platforms with **different CPUs
-and different byte order**. An engine layer nested inside one platform's port
-gets duplicated the moment the second game starts; this one is a peer, consumed
-by each port.
+This repo exists because those two games span platforms with different CPUs and
+GPU payload formats. An engine layer nested inside one platform's port gets
+duplicated the moment the second game starts; this one is a peer, consumed by
+each port.
 
 ## What's here
 
 ```
 src/     igb.c/.h            IGB container reader
+         igb_image.c/.h      image discovery and PS2 image formats
          igb_mesh.c/.h       meshes
          igb_raster.c/.h     textures
          igb_anim.c/.h       animation, incl. the Enbaya-compressed codec
@@ -57,16 +58,17 @@ Standalone it builds the viewers and tools. Consumed by a port
 port links. SDL2 backs the viewers, which are separate binaries — that split is
 what stops two SDLs being linked into one process. Don't collapse them.
 
-## Known gap: byte order
+## Platform coverage
 
-**The readers assume little-endian and do no byte swapping at all** — fields are
-`memcpy`'d straight out of the file. That is correct for PC, Xbox and PS2, and
-**wrong for Xbox 360 and GameCube**, which are big-endian PowerPC.
+Container byte order is a property of the asset, not the CPU that consumes it.
+All supplied MUA assets are little-endian IGBs: 311 PS2 files use version 6 and
+the 324 Xbox 360 base files plus 261 Gold/title-update files use version 8. The
+current reader opens that complete corpus.
 
-This is stated rather than fixed because fixing it correctly needs a real
-big-endian IGB to verify against; a byte-swap written blind would be a guess
-that compiles. It is the first thing to address for a 360 title, and the change
-belongs here, in one place, for every port at once.
+The Xbox 360 assets use the existing DXT image path. MUA's PS2 assets add
+RGBA5551 and indexed CLUT8 payloads; both are decoded by `igb_image.c` and
+checked against matching Xbox 360 images. General big-endian IGB structure and
+semantic payloads remain unsupported until a real corpus proves their layout.
 
 ## History
 

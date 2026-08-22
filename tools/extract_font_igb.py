@@ -97,10 +97,14 @@ def diff_images(a_rgba, b_rgba, w, h):
             i = x * 4
             if row_a[i:i + 4] != row_b[i:i + 4]:
                 count += 1
-                if x < minx: minx = x
-                if x > maxx: maxx = x
-                if y < miny: miny = y
-                if y > maxy: maxy = y
+                if x < minx:
+                    minx = x
+                if x > maxx:
+                    maxx = x
+                if y < miny:
+                    miny = y
+                if y > maxy:
+                    maxy = y
     if maxx < 0:
         return None, 0
     return (minx, miny, maxx + 1, maxy + 1), count

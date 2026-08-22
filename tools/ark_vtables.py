@@ -65,7 +65,7 @@ class PE:
                 self.exec_ranges.append((self.base + va, self.base + va + vsz))
 
     def dw(self, va):
-        for _, s_va, vsz, ptr, rsz in self.secs:
+        for _, s_va, _vsz, ptr, rsz in self.secs:
             r = va - self.base - s_va
             if 0 <= r + 4 <= rsz:
                 return struct.unpack_from("<I", self.d, ptr + r)[0]

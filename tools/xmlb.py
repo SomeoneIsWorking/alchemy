@@ -43,7 +43,7 @@ NONE = 0xffffffff
 
 
 class Node:
-    __slots__ = ("name", "attrs", "children")
+    __slots__ = ("attrs", "children", "name")
 
     def __init__(self, name, attrs=None, children=None):
         self.name = name
@@ -102,7 +102,7 @@ def parse(data):
             raise ValueError("node nesting deeper than 64 at 0x%x" % off)
         if off + 16 > len(data):
             raise ValueError("node at 0x%x runs past end of file" % off)
-        name_off, next_off, child_off, n = struct.unpack_from("<4I", data, off)
+        name_off, _next_off, child_off, n = struct.unpack_from("<4I", data, off)
         if n > 4096:
             raise ValueError("node at 0x%x claims %d attributes" % (off, n))
         node = Node(_cstr(data, name_off))
@@ -219,7 +219,7 @@ def _builtin_battery():
     try:
         blob = serialise(root)
         back = parse(blob)
-    except Exception as e:                          # noqa: BLE001 -- reported
+    except Exception as e:
         print("FAIL builtin: the writer's own output could not be read back: "
               "%s" % e)
         print("xmlb selftest: builtin battery 0 of 8 checks passed")
@@ -281,7 +281,7 @@ def _selftest(paths):
         try:
             root = parse(data)
             again = serialise(root)
-        except Exception as e:                      # noqa: BLE001 -- reported
+        except Exception as e:
             print("FAIL %s: %s" % (p, e))
             continue
         if again == data:
@@ -289,7 +289,7 @@ def _selftest(paths):
             print("ok   %s (%d bytes, %d nodes)"
                   % (p, len(data), len(_flatten(root))))
         else:
-            n = sum(1 for a, b in zip(again, data) if a != b)
+            n = sum(1 for a, b in zip(again, data, strict=False) if a != b)
             print("FAIL %s: round-trip differs, %d of %d bytes (%d vs %d long)"
                   % (p, n + abs(len(again) - len(data)), max(len(again), len(data)),
                      len(again), len(data)))
@@ -299,6 +299,11 @@ def _selftest(paths):
 
 
 def main(argv):
+    if len(argv) > 1 and argv[1] in ("-h", "--help"):
+        print(__doc__.strip())
+        print("\nusage: xmlb.py <file.xmlb>            # dump\n"
+              "       xmlb.py --selftest <file>...   # round-trip check")
+        return 0
     if len(argv) > 1 and argv[1] == "--selftest":
         return _selftest(argv[2:])
     if len(argv) < 2:

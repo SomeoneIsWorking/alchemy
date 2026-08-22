@@ -1,5 +1,5 @@
-#ifndef X2_IGB_MESH_H
-#define X2_IGB_MESH_H
+#ifndef ALCHEMY_IGB_MESH_H
+#define ALCHEMY_IGB_MESH_H
 
 #include "igb.h"
 

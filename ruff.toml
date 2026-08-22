@@ -1,0 +1,7 @@
+line-length = 100
+exclude = ["tools/raven-formats"]
+
+[lint]
+# Defect-oriented checks only. Import ordering, formatting style, short-lived
+# script context managers, and printf-style formatting are deliberately out.
+select = ["F", "E4", "E7", "E9", "B", "PLE", "PLR0124", "RUF"]

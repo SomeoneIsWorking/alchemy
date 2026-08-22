@@ -78,7 +78,8 @@ void x2_controller_manager_remove(x2_controller_manager *man, int index)
     --man->count;
 }
 
-x2_controller *x2_controller_manager_find_by_impl(const x2_controller_manager *man, int impl_id)
+x2_controller *x2_controller_manager_find_by_impl(const x2_controller_manager *man,
+                                                   uint32_t impl_id)
 {
     for (int i = 0; i < man->count; ++i) {
         if (man->controllers[i].impl_id == impl_id) {

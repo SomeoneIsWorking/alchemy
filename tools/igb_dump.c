@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "igb.h"
+#include "igb_internal.h"
 #include "igb_anim.h"
 
 static void dump_types(const igb *f)
@@ -35,7 +36,7 @@ static void dump_types(const igb *f)
                 counts = realloc(counts, (size_t)cap * sizeof(int));
                 idx = realloc(idx, (size_t)cap * sizeof(int));
             }
-            names[n] = strdup(tn);
+            names[n] = igb_duplicate_string(tn);
             counts[n] = 0;
             idx[n] = i;
             ++n;
@@ -157,7 +158,7 @@ static void dump_scan(const igb *f, const char *want, const char *slots_csv)
         for (int k = 0; k < nslots; ++k) {
             const igb_fieldval *fv = igb_object_field(o, (uint16_t)slots[k]);
             if (fv) {
-                if (fv->blob && fv->short_name && strstr(fv->short_name, "String")) {
+                if (fv->blob && strstr(fv->short_name, "String")) {
                     printf("    slot=%d %s str=\"%.*s\"\n", slots[k], fv->short_name,
                            fv->blob_len > 0 ? (int)fv->blob_len : 1,
                            fv->blob_len > 0 ? (const char *)fv->blob : "");

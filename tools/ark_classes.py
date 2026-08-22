@@ -69,7 +69,7 @@ class PE:
             self.secs.append((va, vsz, ptr, rsz))
 
     def off(self, va):
-        for s_va, vsz, ptr, rsz in self.secs:
+        for s_va, _vsz, ptr, rsz in self.secs:
             r = va - self.base - s_va
             if 0 <= r < rsz:
                 return ptr + r
@@ -80,8 +80,7 @@ class PE:
            DEFINES igArkRegister does not import it."""
         d, base = self.d, self.base
         pe = struct.unpack_from("<I", d, 0x3C)[0]
-        magic = struct.unpack_from("<H", d, pe + 24)[0]
-        dd = pe + 24 + (96 if magic == 0x20B else 96)
+        dd = pe + 24 + 96
         edir = struct.unpack_from("<I", d, dd)[0]
         if not edir:
             return 0

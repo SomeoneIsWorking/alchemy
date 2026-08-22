@@ -64,7 +64,7 @@ typedef struct x2_controller {
     x2_controller_type type;
     uint8_t is_console;
     void *impl;
-    int impl_id;
+    uint32_t impl_id;
 } x2_controller;
 
 typedef struct x2_controller_manager x2_controller_manager;
@@ -90,7 +90,8 @@ int x2_controller_manager_get_count(const x2_controller_manager *man);
 x2_controller *x2_controller_manager_get(const x2_controller_manager *man, int index);
 x2_controller *x2_controller_manager_add(x2_controller_manager *man);
 void x2_controller_manager_remove(x2_controller_manager *man, int index);
-x2_controller *x2_controller_manager_find_by_impl(const x2_controller_manager *man, int impl_id);
+x2_controller *x2_controller_manager_find_by_impl(const x2_controller_manager *man,
+                                                   uint32_t impl_id);
 
 int x2_controller_is_connected(const x2_controller *controller);
 uint32_t x2_controller_get_buttons_state(const x2_controller *controller);

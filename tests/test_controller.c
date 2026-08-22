@@ -70,7 +70,7 @@ static void test_button_state(void)
     assert(x2_controller_get_button_state(c, X2_BUTTON_RIGHT_PAD_DOWN));
     assert(!x2_controller_get_button_state(c, X2_BUTTON_SELECT));
     assert(x2_controller_get_buttons_state(c) ==
-           (1u << X2_BUTTON_START) | (1u << X2_BUTTON_RIGHT_PAD_DOWN));
+           ((1u << X2_BUTTON_START) | (1u << X2_BUTTON_RIGHT_PAD_DOWN)));
 
     x2_controller_set_button_state(c, X2_BUTTON_START, 0);
     assert(!x2_controller_get_button_state(c, X2_BUTTON_START));
@@ -145,7 +145,7 @@ static void test_poll_headless(void)
 {
     x2_controller_manager man;
     x2_controller_manager_init(&man);
-    if (x2_sdl_controller_init(&man) != 0) {
+    if (x2_sdl_controller_init() != 0) {
         printf("SKIP poll (no SDL)\n");
         x2_controller_manager_shutdown(&man);
         return;
@@ -163,7 +163,7 @@ static void test_virtual_controller(void)
     x2_controller_manager man;
     x2_controller_manager_init(&man);
     x2_controller_manager_set_callbacks(&man, on_connect, on_disconnect, NULL);
-    if (x2_sdl_controller_init(&man) != 0) {
+    if (x2_sdl_controller_init() != 0) {
         printf("SKIP virtual controller (no SDL)\n");
         return;
     }

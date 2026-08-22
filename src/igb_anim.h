@@ -1,5 +1,5 @@
-#ifndef X2_IGB_ANIM_H
-#define X2_IGB_ANIM_H
+#ifndef ALCHEMY_IGB_ANIM_H
+#define ALCHEMY_IGB_ANIM_H
 
 #include <stddef.h>
 #include <stdint.h>
