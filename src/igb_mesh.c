@@ -1,5 +1,5 @@
 #include "igb_mesh.h"
-
+#include "igb_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -366,7 +366,7 @@ static int decode_geometry(const igb *f, int geom_idx, const float world[16],
     if (go->fields && go->n_fields > 0) {
         for (int i = 0; i < go->n_fields; ++i) {
             if (strcmp(go->fields[i].short_name, "String") == 0 && go->fields[i].blob) {
-                m->name = strdup((const char *)go->fields[i].blob);
+                m->name = igb_duplicate_string((const char *)go->fields[i].blob);
                 break;
             }
         }

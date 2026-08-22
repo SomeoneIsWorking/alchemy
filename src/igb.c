@@ -1,11 +1,12 @@
 #include "igb.h"
-
+#include "igb_image.h"
+#include "igb_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define X2_IGB_MAGIC 0xFADA
-#define X2_IGB_HEADER_SIZE 48
+#define ALCHEMY_IGB_MAGIC 0xFADA
+#define ALCHEMY_IGB_HEADER_SIZE 48
 
 typedef struct {
     char *short_name;
@@ -191,7 +192,7 @@ int igb_open(igb *f, const char *path)
         return -1;
     }
     long sz = ftell(fp);
-    if (sz < X2_IGB_HEADER_SIZE) {
+    if (sz < ALCHEMY_IGB_HEADER_SIZE) {
         fclose(fp);
         return -1;
     }
@@ -214,9 +215,9 @@ int igb_open(igb *f, const char *path)
 
     uint32_t magic_le = rd_u32(buf + 0x28, 1);
     uint32_t magic_be = rd_u32(buf + 0x28, 0);
-    if (magic_le == X2_IGB_MAGIC) {
+    if (magic_le == ALCHEMY_IGB_MAGIC) {
         f->is_le = 1;
-    } else if (magic_be == X2_IGB_MAGIC) {
+    } else if (magic_be == ALCHEMY_IGB_MAGIC) {
         f->is_le = 0;
     } else {
         free(buf);
@@ -249,7 +250,7 @@ int igb_open(igb *f, const char *path)
     c.f = f;
 
     /* ---- Name pool (v8+) ---- */
-    size_t pos = X2_IGB_HEADER_SIZE;
+    size_t pos = ALCHEMY_IGB_HEADER_SIZE;
     if (f->version >= 8) {
         uint32_t buf_size = rd_u32(buf + pos, f->is_le);
         pos += buf_size;
@@ -442,7 +443,7 @@ int igb_open(igb *f, const char *path)
             igb_object *obj = &f->objects[i];
             obj->is_mem = 0;
             if (type < c.n_meta_objs && c.meta_objs[type].name) {
-                obj->type_name = strdup(c.meta_objs[type].name);
+                obj->type_name = igb_duplicate_string(c.meta_objs[type].name);
             }
             const igb_meta_obj *mo = type < c.n_meta_objs ? &c.meta_objs[type] : NULL;
             if (mo) {
@@ -491,7 +492,7 @@ int igb_open(igb *f, const char *path)
                 obj->mem_size = (size_t)msize;
             }
             if (mem_types[i] < c.n_meta_objs && c.meta_objs[mem_types[i]].name) {
-                obj->type_name = strdup(c.meta_objs[mem_types[i]].name);
+                obj->type_name = igb_duplicate_string(c.meta_objs[mem_types[i]].name);
             }
             mpos += ((size_t)msize + 3) & ~3u;
         }
@@ -510,7 +511,7 @@ int igb_open(igb *f, const char *path)
     f->n_meta = (int)c.n_meta_objs;
     f->meta = calloc(c.n_meta_objs ? c.n_meta_objs : 1, sizeof(igb_meta));
     for (uint32_t i = 0; i < c.n_meta_objs; ++i) {
-        f->meta[i].name = c.meta_objs[i].name ? strdup(c.meta_objs[i].name) : NULL;
+        f->meta[i].name = igb_duplicate_string(c.meta_objs[i].name);
         f->meta[i].parent = c.meta_objs[i].parent;
         f->meta[i].n_fields = (int)c.meta_objs[i].n_fields;
         f->meta[i].fields = calloc(c.meta_objs[i].n_fields ? c.meta_objs[i].n_fields : 1,
@@ -524,7 +525,7 @@ int igb_open(igb *f, const char *path)
     f->n_metafields = (int)c.n_meta_fields;
     f->metafields = calloc(c.n_meta_fields ? c.n_meta_fields : 1, sizeof(igb_metafield));
     for (uint32_t i = 0; i < c.n_meta_fields; ++i) {
-        f->metafields[i].name = c.meta_fields[i].short_name ? strdup(c.meta_fields[i].short_name) : NULL;
+        f->metafields[i].name = igb_duplicate_string(c.meta_fields[i].short_name);
     }
     ctx_free(&c);
     return 0;
@@ -598,54 +599,6 @@ const igb_fieldval *igb_object_field(const igb_object *obj, uint16_t slot)
         }
     }
     return NULL;
-}
-
-int igb_find_images(const igb *f, igb_image *out, int max)
-{
-    if (!f || !out || max <= 0) {
-        return 0;
-    }
-    int count = 0;
-    int s = f->slot_offset;
-    for (int i = 0; i < f->n_objects; ++i) {
-        const igb_object *obj = &f->objects[i];
-        if (obj->is_mem || !obj->type_name || strcmp(obj->type_name, "igImage") != 0) {
-            continue;
-        }
-        const igb_fieldval *w = igb_object_field(obj, (uint16_t)(2 + s));
-        const igb_fieldval *h = igb_object_field(obj, (uint16_t)(3 + s));
-        const igb_fieldval *nc = igb_object_field(obj, (uint16_t)(4 + s));
-        const igb_fieldval *pf = igb_object_field(obj, (uint16_t)(11 + s));
-        const igb_fieldval *is = igb_object_field(obj, (uint16_t)(12 + s));
-        const igb_fieldval *pd = igb_object_field(obj, (uint16_t)(13 + s));
-        const igb_fieldval *bpr = igb_object_field(obj, (uint16_t)(19 + s));
-        const igb_fieldval *cmp = igb_object_field(obj, (uint16_t)(20 + s));
-        const igb_fieldval *nm = igb_object_field(obj, (uint16_t)(22 + s));
-        if (!w || !h || !pf || !pd || pd->short_name[0] == 0) {
-            continue;
-        }
-        int ref = pd->i32;
-        if (ref < 0 || ref >= f->n_objects || !f->objects[ref].is_mem) {
-            continue;
-        }
-        igb_image *img = &out[count];
-        memset(img, 0, sizeof(*img));
-        img->width = w->i32;
-        img->height = h->i32;
-        img->num_components = nc ? nc->i32 : 0;
-        img->pixel_format = pf->i32;
-        img->image_size = is ? is->i32 : 0;
-        img->bytes_per_row = bpr ? bpr->i32 : 0;
-        img->compressed = cmp ? (cmp->i32 != 0) : 1;
-        img->data = f->objects[ref].mem;
-        img->data_len = f->objects[ref].mem_size;
-        img->name = (nm && nm->blob) ? (char *)nm->blob : NULL;
-        ++count;
-        if (count >= max) {
-            break;
-        }
-    }
-    return count;
 }
 
 /* ---- DXT decode ---- */
@@ -748,6 +701,12 @@ uint8_t *igb_image_to_rgba(const igb_image *img, int *out_len)
     if (!img || !img->data || img->width <= 0 || img->height <= 0) {
         return NULL;
     }
+    if (img->pixel_format == ALCHEMY_IGB_PFMT_RGBA5551) {
+        return igb_image_decode_rgba5551(img, out_len);
+    }
+    if (img->pixel_format == ALCHEMY_IGB_PFMT_CLUT_INDEX8) {
+        return igb_image_decode_clut_index8(img, out_len);
+    }
     int w = img->width;
     int h = img->height;
     size_t out_size = (size_t)w * h * 4;
@@ -756,7 +715,7 @@ uint8_t *igb_image_to_rgba(const igb_image *img, int *out_len)
         return NULL;
     }
 
-    if (img->pixel_format == X2_IGB_PFMT_RGBA8888) {
+    if (img->pixel_format == ALCHEMY_IGB_PFMT_RGBA8888) {
         if (img->data_len < out_size) {
             free(out);
             return NULL;
@@ -765,7 +724,7 @@ uint8_t *igb_image_to_rgba(const igb_image *img, int *out_len)
         *out_len = (int)out_size;
         return out;
     }
-    if (img->pixel_format == X2_IGB_PFMT_RGB888) {
+    if (img->pixel_format == ALCHEMY_IGB_PFMT_RGB888) {
         if (img->data_len < (size_t)w * h * 3) {
             free(out);
             return NULL;
@@ -779,7 +738,7 @@ uint8_t *igb_image_to_rgba(const igb_image *img, int *out_len)
         *out_len = (int)out_size;
         return out;
     }
-    if (img->pixel_format == X2_IGB_PFMT_RGB565) {
+    if (img->pixel_format == ALCHEMY_IGB_PFMT_RGB565) {
         if (img->data_len < (size_t)w * h * 2) {
             free(out);
             return NULL;
@@ -791,11 +750,10 @@ uint8_t *igb_image_to_rgba(const igb_image *img, int *out_len)
         *out_len = (int)out_size;
         return out;
     }
-
     int blocks_x = (w + 3) / 4;
     int blocks_y = (h + 3) / 4;
-    int block_size = (img->pixel_format == X2_IGB_PFMT_RGB_DXT1 ||
-                      img->pixel_format == X2_IGB_PFMT_RGBA_DXT1) ? 8 : 16;
+    int block_size = (img->pixel_format == ALCHEMY_IGB_PFMT_RGB_DXT1 ||
+                      img->pixel_format == ALCHEMY_IGB_PFMT_RGBA_DXT1) ? 8 : 16;
     size_t need = (size_t)blocks_x * blocks_y * block_size;
     if (img->data_len < need) {
         free(out);
@@ -807,14 +765,14 @@ uint8_t *igb_image_to_rgba(const igb_image *img, int *out_len)
             size_t bo = (size_t)(by * blocks_x + bx) * block_size;
             uint8_t px[16][4];
             switch (img->pixel_format) {
-            case X2_IGB_PFMT_RGB_DXT1:
-            case X2_IGB_PFMT_RGBA_DXT1:
+            case ALCHEMY_IGB_PFMT_RGB_DXT1:
+            case ALCHEMY_IGB_PFMT_RGBA_DXT1:
                 decode_dxt1_block(img->data + bo, px);
                 break;
-            case X2_IGB_PFMT_RGBA_DXT3:
+            case ALCHEMY_IGB_PFMT_RGBA_DXT3:
                 decode_dxt3_block(img->data + bo, px);
                 break;
-            case X2_IGB_PFMT_RGBA_DXT5:
+            case ALCHEMY_IGB_PFMT_RGBA_DXT5:
                 decode_dxt5_block(img->data + bo, px);
                 break;
             default:

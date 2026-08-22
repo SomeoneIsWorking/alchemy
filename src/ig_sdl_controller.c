@@ -159,7 +159,7 @@ static void handle_axis(x2_controller_manager *man, SDL_JoystickID instance_id,
     }
 }
 
-int x2_sdl_controller_init(x2_controller_manager *man)
+int x2_sdl_controller_init(void)
 {
     if (!s_button_map_ready) {
         build_button_map();
