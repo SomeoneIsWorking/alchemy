@@ -1,224 +1,276 @@
-#include "ig_controller.h"
+#include "ig_sdl_controller.h"
 
 #include <SDL3/SDL.h>
 
-#define X2_STICK_DEADZONE 0.1f
-#define X2_TRIGGER_BUTTON_THRESHOLD 0.5f
+#define IG_STICK_DEADZONE 0.1f
+#define IG_TRIGGER_BUTTON_THRESHOLD 0.5f
 
-static x2_button s_button_map[SDL_GAMEPAD_BUTTON_COUNT];
-
-static int s_button_map_ready;
-
-static void build_button_map(void)
+ig_controller_button ig_sdl_controller_button_to_ig(SDL_GamepadButton button)
 {
-    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; ++i) {
-        s_button_map[i] = X2_BUTTON_UNMAPPED;
+    switch (button) {
+    case SDL_GAMEPAD_BUTTON_SOUTH:
+        return IG_CONTROLLER_BUTTON_FACE_DOWN;
+    case SDL_GAMEPAD_BUTTON_EAST:
+        return IG_CONTROLLER_BUTTON_FACE_RIGHT;
+    case SDL_GAMEPAD_BUTTON_WEST:
+        return IG_CONTROLLER_BUTTON_FACE_LEFT;
+    case SDL_GAMEPAD_BUTTON_NORTH:
+        return IG_CONTROLLER_BUTTON_FACE_UP;
+    case SDL_GAMEPAD_BUTTON_BACK:
+        return IG_CONTROLLER_BUTTON_SELECT;
+    case SDL_GAMEPAD_BUTTON_START:
+        return IG_CONTROLLER_BUTTON_START;
+    case SDL_GAMEPAD_BUTTON_LEFT_STICK:
+        return IG_CONTROLLER_BUTTON_LEFT_STICK;
+    case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
+        return IG_CONTROLLER_BUTTON_RIGHT_STICK;
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+        return IG_CONTROLLER_BUTTON_LEFT_SHOULDER;
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+        return IG_CONTROLLER_BUTTON_RIGHT_SHOULDER;
+    case SDL_GAMEPAD_BUTTON_DPAD_UP:
+        return IG_CONTROLLER_BUTTON_DPAD_UP;
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+        return IG_CONTROLLER_BUTTON_DPAD_DOWN;
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+        return IG_CONTROLLER_BUTTON_DPAD_LEFT;
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+        return IG_CONTROLLER_BUTTON_DPAD_RIGHT;
+    case SDL_GAMEPAD_BUTTON_GUIDE:
+        return IG_CONTROLLER_BUTTON_16;
+    default:
+        return IG_CONTROLLER_BUTTON_UNMAPPED;
     }
-    s_button_map[SDL_GAMEPAD_BUTTON_SOUTH] = X2_BUTTON_RIGHT_PAD_DOWN;
-    s_button_map[SDL_GAMEPAD_BUTTON_EAST] = X2_BUTTON_RIGHT_PAD_RIGHT;
-    s_button_map[SDL_GAMEPAD_BUTTON_WEST] = X2_BUTTON_RIGHT_PAD_LEFT;
-    s_button_map[SDL_GAMEPAD_BUTTON_NORTH] = X2_BUTTON_RIGHT_PAD_UP;
-    s_button_map[SDL_GAMEPAD_BUTTON_BACK] = X2_BUTTON_SELECT;
-    s_button_map[SDL_GAMEPAD_BUTTON_START] = X2_BUTTON_START;
-    s_button_map[SDL_GAMEPAD_BUTTON_LEFT_STICK] = X2_BUTTON_LEFT_JOYSTICK_BUTTON;
-    s_button_map[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = X2_BUTTON_RIGHT_JOYSTICK_BUTTON;
-    s_button_map[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = X2_BUTTON_UPPER_LEFT_TRIGGER;
-    s_button_map[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = X2_BUTTON_UPPER_RIGHT_TRIGGER;
-    s_button_map[SDL_GAMEPAD_BUTTON_DPAD_UP] = X2_BUTTON_LEFT_PAD_UP;
-    s_button_map[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = X2_BUTTON_LEFT_PAD_DOWN;
-    s_button_map[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = X2_BUTTON_LEFT_PAD_LEFT;
-    s_button_map[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = X2_BUTTON_LEFT_PAD_RIGHT;
-    s_button_map[SDL_GAMEPAD_BUTTON_GUIDE] = X2_BUTTON_16;
-    s_button_map_ready = 1;
 }
 
-int x2_sdl_controller_button_to_ig(SDL_GamepadButton button)
+static float normalize_stick(Sint16 value)
 {
-    if (!s_button_map_ready) {
-        build_button_map();
-    }
-    if ((int)button < 0 || (int)button >= SDL_GAMEPAD_BUTTON_COUNT) {
-        return X2_BUTTON_UNMAPPED;
-    }
-    return s_button_map[button];
-}
-
-static float normalize_axis(Sint16 value)
-{
-    float v = value >= 0 ? (float)value / 32767.0f : (float)value / 32768.0f;
-    if (v > -X2_STICK_DEADZONE && v < X2_STICK_DEADZONE) {
+    float normalized = value >= 0 ? (float)value / 32767.0f : (float)value / 32768.0f;
+    if (normalized > -IG_STICK_DEADZONE && normalized < IG_STICK_DEADZONE) {
         return 0.0f;
     }
-    return v;
+    return normalized;
 }
 
-static x2_controller_type detect_type(SDL_Gamepad *gc)
+static float normalize_trigger(Sint16 value)
 {
-    SDL_GamepadType type = SDL_GetGamepadType(gc);
-    switch (type) {
+    return value <= 0 ? 0.0f : (float)value / 32767.0f;
+}
+
+static ig_controller_type detect_type(SDL_Gamepad *gamepad)
+{
+    switch (SDL_GetGamepadType(gamepad)) {
     case SDL_GAMEPAD_TYPE_XBOX360:
     case SDL_GAMEPAD_TYPE_XBOXONE:
-        return X2_CONTROLLER_XBOX360_MICROSOFT_10BUTTONSPOV;
+        return IG_CONTROLLER_TYPE_XBOX360_MICROSOFT_10BUTTONS_POV;
     default:
-        return X2_CONTROLLER_UNKNOWN;
+        return IG_CONTROLLER_TYPE_UNKNOWN;
     }
 }
 
-/* SDL3 hands the ADDED event a joystick instance ID; SDL2 gave a device
-   index into a list that could shift under you. */
-static void handle_added(x2_controller_manager *man, SDL_JoystickID which)
+static void add_controller(ig_controller_manager *manager, SDL_JoystickID which)
 {
-    SDL_Gamepad *gc = SDL_OpenGamepad(which);
-    if (!gc) {
+    SDL_Gamepad *gamepad = SDL_OpenGamepad(which);
+    ig_controller_device device;
+
+    if (!gamepad) {
         return;
     }
-    if (x2_controller_manager_find_by_impl(man, SDL_GetJoystickID(SDL_GetGamepadJoystick(gc)))) {
-        SDL_CloseGamepad(gc);
+    device.device_id = SDL_GetGamepadID(gamepad);
+    if (ig_controller_manager_find(manager, device.device_id)) {
+        SDL_CloseGamepad(gamepad);
         return;
     }
-    x2_controller *c = x2_controller_manager_add(man);
-    if (!c) {
-        SDL_CloseGamepad(gc);
-        return;
-    }
-    c->impl = gc;
-    c->impl_id = SDL_GetJoystickID(SDL_GetGamepadJoystick(gc));
-    c->connected = 1;
-    c->type = detect_type(gc);
-    c->is_console = 1;
-    c->id = (uint16_t)(man->count - 1);
-    if (c->type == X2_CONTROLLER_XBOX360_MICROSOFT_10BUTTONSPOV) {
-        x2_controller_set_button_pressure(c, X2_BUTTON_LOWER_LEFT_TRIGGER, 0.0f);
-        x2_controller_set_button_pressure(c, X2_BUTTON_LOWER_RIGHT_TRIGGER, 0.0f);
+    device.backend_handle = gamepad;
+    device.type = detect_type(gamepad);
+    device.is_console = 1;
+    if (!ig_controller_manager_connect(manager, &device)) {
+        SDL_CloseGamepad(gamepad);
     }
 }
 
-static void handle_removed(x2_controller_manager *man, SDL_JoystickID instance_id)
+static void remove_controller(ig_controller_manager *manager, SDL_JoystickID which)
 {
-    for (int i = 0; i < man->count; ++i) {
-        x2_controller *c = &man->controllers[i];
-        if (c->impl_id != instance_id) {
-            continue;
-        }
-        SDL_Gamepad *gc = c->impl;
-        x2_controller_manager_remove(man, i);
-        if (gc) {
-            SDL_CloseGamepad(gc);
-        }
+    ig_controller *controller = ig_controller_manager_find(manager, which);
+    SDL_Gamepad *gamepad;
+
+    if (!controller) {
         return;
+    }
+    gamepad = controller->backend_handle;
+    ig_controller_manager_disconnect(manager, which);
+    if (gamepad) {
+        SDL_CloseGamepad(gamepad);
     }
 }
 
-static void handle_button(x2_controller_manager *man, SDL_JoystickID instance_id,
-                          SDL_GamepadButton button, int pressed)
+int ig_sdl_controller_initialize(ig_controller_manager *manager)
 {
-    x2_controller *c = x2_controller_manager_find_by_impl(man, instance_id);
-    if (!c) {
-        return;
-    }
-    int ig = x2_sdl_controller_button_to_ig(button);
-    if (ig == X2_BUTTON_UNMAPPED) {
-        return;
-    }
-    x2_controller_set_button_state(c, (x2_button)ig, pressed);
-    x2_controller_set_button_pressure(c, (x2_button)ig, pressed ? 1.0f : 0.0f);
-}
+    SDL_JoystickID *gamepads;
+    int count = 0;
 
-static void handle_axis(x2_controller_manager *man, SDL_JoystickID instance_id,
-                        SDL_GamepadAxis axis, Sint16 value)
-{
-    x2_controller *c = x2_controller_manager_find_by_impl(man, instance_id);
-    if (!c) {
-        return;
+    if (SDL_WasInit(SDL_INIT_GAMEPAD) == 0 && !SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
+        return -1;
     }
-    switch (axis) {
-    case SDL_GAMEPAD_AXIS_LEFTX:
-        x2_controller_set_joystick(c, 0, normalize_axis(value), c->joystick[0][1]);
-        break;
-    case SDL_GAMEPAD_AXIS_LEFTY:
-        x2_controller_set_joystick(c, 0, c->joystick[0][0], normalize_axis(value));
-        break;
-    case SDL_GAMEPAD_AXIS_RIGHTX:
-        x2_controller_set_joystick(c, 1, normalize_axis(value), c->joystick[1][1]);
-        break;
-    case SDL_GAMEPAD_AXIS_RIGHTY:
-        x2_controller_set_joystick(c, 1, c->joystick[1][0], normalize_axis(value));
-        break;
-    case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
-        x2_controller_set_button_pressure(c, X2_BUTTON_LOWER_LEFT_TRIGGER, (float)value / 32767.0f);
-        x2_controller_set_button_state(c, X2_BUTTON_LOWER_LEFT_TRIGGER,
-                                       value / 32767.0f > X2_TRIGGER_BUTTON_THRESHOLD);
-        break;
-    case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER:
-        x2_controller_set_button_pressure(c, X2_BUTTON_LOWER_RIGHT_TRIGGER, (float)value / 32767.0f);
-        x2_controller_set_button_state(c, X2_BUTTON_LOWER_RIGHT_TRIGGER,
-                                       value / 32767.0f > X2_TRIGGER_BUTTON_THRESHOLD);
-        break;
-    default:
-        break;
+    gamepads = SDL_GetGamepads(&count);
+    if (!gamepads && count != 0) {
+        return -1;
     }
-}
-
-int x2_sdl_controller_init(void)
-{
-    if (!s_button_map_ready) {
-        build_button_map();
+    for (int i = 0; i < count; ++i) {
+        add_controller(manager, gamepads[i]);
     }
-    if (SDL_WasInit(SDL_INIT_GAMEPAD) == 0) {
-        /* SDL3 returns true on success, where SDL2 returned 0. */
-        if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
-            return -1;
-        }
-    }
+    SDL_free(gamepads);
     return 0;
 }
 
-void x2_sdl_controller_poll(x2_controller_manager *man)
+static void set_button(ig_controller *controller, SDL_GamepadButton button, int pressed)
 {
-    SDL_Event ev;
-    while (SDL_PollEvent(&ev)) {
-        switch (ev.type) {
-        case SDL_EVENT_GAMEPAD_ADDED:
-            handle_added(man, ev.gdevice.which);
-            break;
-        case SDL_EVENT_GAMEPAD_REMOVED:
-            handle_removed(man, ev.gdevice.which);
-            break;
-        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-            handle_button(man, ev.gbutton.which, ev.gbutton.button, 1);
-            break;
-        case SDL_EVENT_GAMEPAD_BUTTON_UP:
-            handle_button(man, ev.gbutton.which, ev.gbutton.button, 0);
-            break;
-        case SDL_EVENT_GAMEPAD_AXIS_MOTION:
-            handle_axis(man, ev.gaxis.which, ev.gaxis.axis, ev.gaxis.value);
-            break;
-        case SDL_EVENT_GAMEPAD_REMAPPED:
-            break;
-        default:
-            break;
+    ig_controller_button mapped = ig_sdl_controller_button_to_ig(button);
+    if (mapped == IG_CONTROLLER_BUTTON_UNMAPPED) {
+        return;
+    }
+    ig_controller_set_button_state(controller, mapped, pressed);
+    ig_controller_set_button_pressure(controller, mapped, pressed ? 1.0f : 0.0f);
+}
+
+static void set_axis(ig_controller *controller, SDL_GamepadAxis axis, Sint16 value)
+{
+    float pressure;
+
+    switch (axis) {
+    case SDL_GAMEPAD_AXIS_LEFTX:
+        ig_controller_set_joystick(controller, 0, normalize_stick(value),
+                                   controller->joystick[0][1]);
+        break;
+    case SDL_GAMEPAD_AXIS_LEFTY:
+        ig_controller_set_joystick(controller, 0, controller->joystick[0][0],
+                                   normalize_stick(value));
+        break;
+    case SDL_GAMEPAD_AXIS_RIGHTX:
+        ig_controller_set_joystick(controller, 1, normalize_stick(value),
+                                   controller->joystick[1][1]);
+        break;
+    case SDL_GAMEPAD_AXIS_RIGHTY:
+        ig_controller_set_joystick(controller, 1, controller->joystick[1][0],
+                                   normalize_stick(value));
+        break;
+    case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
+        pressure = normalize_trigger(value);
+        ig_controller_set_button_pressure(controller, IG_CONTROLLER_BUTTON_LEFT_TRIGGER,
+                                          pressure);
+        ig_controller_set_button_state(controller, IG_CONTROLLER_BUTTON_LEFT_TRIGGER,
+                                       pressure > IG_TRIGGER_BUTTON_THRESHOLD);
+        break;
+    case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER:
+        pressure = normalize_trigger(value);
+        ig_controller_set_button_pressure(controller, IG_CONTROLLER_BUTTON_RIGHT_TRIGGER,
+                                          pressure);
+        ig_controller_set_button_state(controller, IG_CONTROLLER_BUTTON_RIGHT_TRIGGER,
+                                       pressure > IG_TRIGGER_BUTTON_THRESHOLD);
+        break;
+    default:
+        break;
+    }
+}
+
+void ig_sdl_controller_handle_event(ig_controller_manager *manager, const SDL_Event *event)
+{
+    ig_controller *controller;
+
+    if (!manager || !event) {
+        return;
+    }
+    switch (event->type) {
+    case SDL_EVENT_GAMEPAD_ADDED:
+        add_controller(manager, event->gdevice.which);
+        break;
+    case SDL_EVENT_GAMEPAD_REMOVED:
+        remove_controller(manager, event->gdevice.which);
+        break;
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+    case SDL_EVENT_GAMEPAD_BUTTON_UP:
+        controller = ig_controller_manager_find(manager, event->gbutton.which);
+        if (controller) {
+            set_button(controller, event->gbutton.button,
+                       event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN);
+        }
+        break;
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        controller = ig_controller_manager_find(manager, event->gaxis.which);
+        if (controller) {
+            set_axis(controller, event->gaxis.axis, event->gaxis.value);
+        }
+        break;
+    case SDL_EVENT_GAMEPAD_REMAPPED:
+        controller = ig_controller_manager_find(manager, event->gdevice.which);
+        if (controller) {
+            controller->type = detect_type(controller->backend_handle);
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+void ig_sdl_controller_update(ig_controller_manager *manager)
+{
+    for (int i = 0; i < IG_CONTROLLER_MAX_COUNT; ++i) {
+        ig_controller *controller = &manager->controllers[i];
+        SDL_Gamepad *gamepad;
+
+        if (!controller->connected || !controller->backend_handle) {
+            continue;
+        }
+        gamepad = controller->backend_handle;
+        for (int button = 0; button < SDL_GAMEPAD_BUTTON_COUNT; ++button) {
+            set_button(controller, (SDL_GamepadButton)button,
+                       SDL_GetGamepadButton(gamepad, (SDL_GamepadButton)button));
+        }
+        for (int axis = 0; axis < SDL_GAMEPAD_AXIS_COUNT; ++axis) {
+            set_axis(controller, (SDL_GamepadAxis)axis,
+                     SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)axis));
         }
     }
 }
 
-void x2_controller_set_rumble(x2_controller *controller, int motor, float speed)
+void ig_sdl_controller_shutdown(ig_controller_manager *manager)
 {
-    SDL_Gamepad *gc = controller->impl;
-    if (!gc) {
+    for (int i = 0; i < IG_CONTROLLER_MAX_COUNT; ++i) {
+        ig_controller *controller = &manager->controllers[i];
+        SDL_Gamepad *gamepad;
+        uint32_t device_id;
+
+        if (!controller->connected) {
+            continue;
+        }
+        gamepad = controller->backend_handle;
+        device_id = controller->device_id;
+        ig_controller_manager_disconnect(manager, device_id);
+        if (gamepad) {
+            SDL_CloseGamepad(gamepad);
+        }
+    }
+}
+
+void ig_sdl_controller_set_rumble(ig_controller *controller, int motor, float speed)
+{
+    SDL_Gamepad *gamepad;
+    uint16_t low = 0;
+    uint16_t high = 0;
+
+    if (!controller || !controller->backend_handle) {
         return;
     }
     if (speed < 0.0f) {
         speed = 0.0f;
-    }
-    if (speed > 1.0f) {
+    } else if (speed > 1.0f) {
         speed = 1.0f;
     }
-    uint16_t low = 0;
-    uint16_t high = 0;
     if (motor == 0) {
-        low = (uint16_t)(speed * 0xffff);
+        low = (uint16_t)(speed * 65535.0f);
     } else {
-        high = (uint16_t)(speed * 0xffff);
+        high = (uint16_t)(speed * 65535.0f);
     }
-    SDL_RumbleGamepad(gc, low, high, 0);
+    gamepad = controller->backend_handle;
+    SDL_RumbleGamepad(gamepad, low, high, 0);
 }

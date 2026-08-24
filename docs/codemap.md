@@ -25,7 +25,7 @@ Status vocabulary:
 | IGB meshes/scenes | **partial** | `src/igb_mesh.c`, `igb_scene_load` | Verified for XML2 assets only; MUA topology, transforms, palettes, and platform payload assumptions need corpus checks. |
 | IGB CPU rasterizer | **tool-only** | `src/igb_raster.c` | Debug viewer rasterizer, not a shipping renderer. |
 | Enbaya animation | **partial** | `src/igb_anim.c`, `igb_enbaya_decode` | Algorithm is implemented; the normal test currently lacks a bundled real blob. Add explicit MUA corpus verification. |
-| Input abstraction | **partial** | `src/ig_controller.c`, `src/ig_sdl_controller.c` | Host data model works. MUA ARK class graph, vtable ABI, and concrete substitution are unverified. |
+| Native Alchemy input | **partial** | `src/ig_controller.{c,h}`, `src/ig_sdl_controller.{c,h}`, `docs/input.md` | Generic `ig` snapshots use stable device slots; the SDL backend enumerates startup devices, consumes centrally forwarded hotplug/state events, refreshes complete snapshots, and owns rumble/handles. Virtual-device tests cover startup and late attach. X-Men 2 guest substitution/A-B parity and MUA ARK/vtable ABI remain unverified. |
 | XMLB | **real** | `tools/xmlb.py`, `tools/mua_corpus.py` | 14,348/14,348 MUA payload occurrences round-trip byte-identically; this remains an offline asset owner, not a linked runtime service. |
 | FB packages | **real** | `tools/raven-formats/src/raven_formats/fb.py`, `tools/alchemy_archives.py` | 1,087/1,087 MUA packages parse; ordered iteration retains all 129 duplicate-path occurrences. |
 | MUA real-disc corpus | **real** | `tools/mua_corpus.py`, `inspect_archives` | PS2, base Xbox 360, Gold DLC, and title-update archives are fully traversed through FB/XMLB/IGB owners; semantic mesh/animation/raster correctness remains separate. |
@@ -38,15 +38,15 @@ Status vocabulary:
 ## Source tree
 
 ```text
-src/  —  2,963 lines, 16 files
+src/  —  3,069 lines, 16 files
 apps/  —  534 lines, 3 files
-tools/  —  3,258 lines, 17 files
+tools/  —  3,300 lines, 17 files
 ├─ raven-formats/  988 lines  7 files  [.py]
 │  ├─ src/  952 lines  6 files
 │  ├─ tests/  36 lines  1 file
-tests/  —  571 lines, 4 files
+tests/  —  576 lines, 4 files
 
-TOTAL: 7,326 lines across 40 files in 4 roots
+TOTAL: 7,479 lines across 40 files in 4 roots
 ```
 
 ## Where is X?
@@ -55,7 +55,8 @@ TOTAL: 7,326 lines across 40 files in 4 roots
 - Discover/decode an image: `src/igb_image.c`, `src/igb.c` → `igb_find_images`, `igb_image_to_rgba`
 - Walk a scene: `src/igb_mesh.c` → `igb_scene_load`
 - Decode Enbaya: `src/igb_anim.c` → `igb_enbaya_decode`
-- Translate SDL input: `src/ig_sdl_controller.c`
+- Read/update Alchemy controller state: `src/ig_controller.c`
+- Translate centrally forwarded SDL input and hotplug: `src/ig_sdl_controller.c`
 - Inspect XMLB: `tools/xmlb.py`
 - Inspect FB/ZSND: `tools/raven-formats/src/raven_formats/`
 - Verify the real MUA discs and Gold content: `tools/mua_corpus.py`

@@ -15,6 +15,17 @@ in the consuming game port or a shared console-host repository. A behavior is
 shared only after its engine ownership is evidenced; do not move title policy
 here because two games happen to call it.
 
+## Native input ownership
+
+`src/ig_controller.{c,h}` owns Alchemy's platform-neutral controller snapshot
+and stable device slots. `src/ig_sdl_controller.{c,h}` owns SDL gamepad
+discovery, device handles, translation, rumble, and snapshot refresh. The host
+application owns SDL's one process-wide event pump and forwards every event to
+`ig_sdl_controller_handle_event`; the Alchemy backend must never call
+`SDL_PollEvent` itself. A title owns action bindings, player participation,
+device-to-player policy, and prompt presentation. See `docs/input.md` for the
+binary evidence and the remaining guest-substitution frontier.
+
 ## Compatibility evidence
 
 - Treat CPU byte order, container byte order, and encoded GPU/audio payload
