@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 project(alchemy C)
 
+# Clang is what this library is developed and tested with; AppleClang counts
+# as Clang. Another compiler warns rather than bans -- a fresh machine must
+# not have to install a specific vendor to try a consumer of this layer.
 if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR
-            "Alchemy requires Clang; configured compiler is ${CMAKE_C_COMPILER_ID}")
+    message(WARNING
+            "Alchemy is tested with Clang; configured compiler is "
+            "${CMAKE_C_COMPILER_ID}, which has not been tested. Proceeding.")
 endif()
 
 # The Alchemy engine layer: asset readers and the input abstraction shared by
