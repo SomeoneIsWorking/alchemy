@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Extract igImage textures from an Alchemy IGB and decode them to PNG.
 
-Uses the IGB format reader vendored under scratch/ref/igblib (KaikoClanworth1's
-igb-blender, gitignored reference — NOT committed). This tool is our own code.
+Uses the IGB format reader vendored at vendor/igblib (KaikoClanworth1's
+igblib, tracked in this repo — see vendor/igblib/README.md). This tool is our
+own code.
 
 Usage:
     extract_font_igb.py <file.igb> <out_dir>
@@ -19,8 +20,13 @@ import zlib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT / "scratch" / "ref") not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT / "scratch" / "ref"))
+if str(REPO_ROOT / "vendor") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "vendor"))
+# A per-machine scratch copy was the old resolution; keep it working as an
+# override for local experiments, but the tracked vendor copy is the default.
+_scratch_ref = REPO_ROOT / "scratch" / "ref"
+if _scratch_ref.is_dir() and str(_scratch_ref) not in sys.path:
+    sys.path.append(str(_scratch_ref))
 
 
 def write_png(rgba, width, height, path):
