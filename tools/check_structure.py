@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import tempfile
 
 SOURCE_SUFFIXES = {".c", ".h", ".py"}
@@ -38,6 +39,25 @@ def violations(root: pathlib.Path) -> list[tuple[pathlib.Path, int, int]]:
     return found
 
 
+def input_ownership_violations(root: pathlib.Path) -> list[str]:
+    backend_path = root / "src/ig_sdl_controller.c"
+    input_paths = sorted((root / "src").glob("ig_*controller.[ch]"))
+    found = []
+
+    if backend_path.exists() and "SDL_PollEvent" in backend_path.read_text(encoding="utf-8"):
+        found.append(
+            "src/ig_sdl_controller.c polls SDL's global event queue; "
+            "the application must forward events"
+        )
+    for path in input_paths:
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"\b(?:x2|X2)_", text):
+            found.append(
+                f"{path.relative_to(root)} exposes title-specific X2 input vocabulary"
+            )
+    return found
+
+
 def run_selftest() -> int:
     scratch = pathlib.Path(__file__).resolve().parents[1] / "scratch"
     scratch.mkdir(exist_ok=True)
@@ -61,7 +81,23 @@ def run_selftest() -> int:
         if observed != expected:
             print(f"structure self-test: expected {expected}, observed {observed}")
             return 1
-    print("structure self-test: accepted boundary and detected oversized source")
+        (source / "ig_sdl_controller.c").write_text(
+            "void poll(void) { SDL_PollEvent(0); }\n", encoding="utf-8"
+        )
+        (source / "ig_controller.h").write_text(
+            "void x2_controller_init(void);\n", encoding="utf-8"
+        )
+        ownership = input_ownership_violations(root)
+        if len(ownership) != 2:
+            print(
+                "structure self-test: expected event-pump and title-vocabulary "
+                f"violations, observed {ownership}"
+            )
+            return 1
+    print(
+        "structure self-test: accepted boundaries and detected oversized source, "
+        "backend event polling, and title-specific input vocabulary"
+    )
     return 0
 
 
@@ -74,13 +110,16 @@ def main() -> int:
 
     root = pathlib.Path(__file__).resolve().parents[1]
     found = violations(root)
-    if found:
+    ownership = input_ownership_violations(root)
+    if found or ownership:
         for path, count, limit in found:
             print(f"structure: {path} has {count} lines; limit is {limit}")
+        for message in ownership:
+            print(f"structure: {message}")
         return 1
     print(
         "structure: new first-party files are at most 500 lines; "
-        "legacy limits did not grow"
+        "legacy limits did not grow; SDL input ownership is intact"
     )
     return 0
 

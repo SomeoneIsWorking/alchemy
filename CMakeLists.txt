@@ -64,15 +64,19 @@ add_library(alchemy
 target_include_directories(alchemy PUBLIC src)
 target_link_libraries(alchemy PUBLIC m)
 
-# The engine's own controller abstraction (Alchemy's `ig` prefix), and the SDL
-# backend that satisfies it on a host.
+# The engine's controller snapshot is platform-neutral. The SDL adapter is a
+# peer target because it exposes SDL at its host-facing event boundary; tools
+# that only consume engine state must not inherit an SDL dependency.
 add_library(alchemy_input
     src/ig_controller.c
-    src/ig_sdl_controller.c
 )
 target_include_directories(alchemy_input PUBLIC src)
 if(ALCHEMY_SDL3)
-    target_link_libraries(alchemy_input PUBLIC ${ALCHEMY_SDL3})
+    add_library(alchemy_input_sdl
+        src/ig_sdl_controller.c
+    )
+    target_include_directories(alchemy_input_sdl PUBLIC src)
+    target_link_libraries(alchemy_input_sdl PUBLIC alchemy_input ${ALCHEMY_SDL3})
 endif()
 
 # Viewers and dump tools are built only when this is the top-level project. A
@@ -114,7 +118,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     if(ALCHEMY_SDL3)
         add_executable(test_controller tests/test_controller.c)
-        target_link_libraries(test_controller PRIVATE alchemy_input)
+        target_link_libraries(test_controller PRIVATE alchemy_input_sdl)
         target_compile_options(test_controller PRIVATE -UNDEBUG)
         add_test(NAME controller COMMAND test_controller)
     endif()

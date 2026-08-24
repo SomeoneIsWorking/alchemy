@@ -1,107 +1,122 @@
-#ifndef X2_IG_CONTROLLER_H
-#define X2_IG_CONTROLLER_H
+#ifndef ALCHEMY_IG_CONTROLLER_H
+#define ALCHEMY_IG_CONTROLLER_H
 
 #include <stdint.h>
 
-#define X2_MAX_CONTROLLERS 4
-#define X2_BUTTON_COUNT 32
+#define IG_CONTROLLER_MAX_COUNT 4
+#define IG_CONTROLLER_BUTTON_COUNT 32
 
-typedef enum {
-    X2_BUTTON_SELECT = 0,
-    X2_BUTTON_LEFT_JOYSTICK_BUTTON = 1,
-    X2_BUTTON_RIGHT_JOYSTICK_BUTTON = 2,
-    X2_BUTTON_START = 3,
-    X2_BUTTON_LEFT_PAD_UP = 4,
-    X2_BUTTON_LEFT_PAD_RIGHT = 5,
-    X2_BUTTON_LEFT_PAD_DOWN = 6,
-    X2_BUTTON_LEFT_PAD_LEFT = 7,
-    X2_BUTTON_LOWER_LEFT_TRIGGER = 8,
-    X2_BUTTON_LOWER_RIGHT_TRIGGER = 9,
-    X2_BUTTON_UPPER_LEFT_TRIGGER = 10,
-    X2_BUTTON_UPPER_RIGHT_TRIGGER = 11,
-    X2_BUTTON_RIGHT_PAD_UP = 12,
-    X2_BUTTON_RIGHT_PAD_RIGHT = 13,
-    X2_BUTTON_RIGHT_PAD_DOWN = 14,
-    X2_BUTTON_RIGHT_PAD_LEFT = 15,
-    X2_BUTTON_16 = 16,
-    X2_BUTTON_17 = 17,
-    X2_BUTTON_18 = 18,
-    X2_BUTTON_19 = 19,
-    X2_BUTTON_20 = 20,
-    X2_BUTTON_21 = 21,
-    X2_BUTTON_22 = 22,
-    X2_BUTTON_23 = 23,
-    X2_BUTTON_24 = 24,
-    X2_BUTTON_25 = 25,
-    X2_BUTTON_26 = 26,
-    X2_BUTTON_27 = 27,
-    X2_BUTTON_28 = 28,
-    X2_BUTTON_29 = 29,
-    X2_BUTTON_30 = 30,
-    X2_BUTTON_31 = 31,
-    X2_BUTTON_MAX = 32,
-    X2_BUTTON_UNMAPPED = 0xffff
-} x2_button;
+typedef enum ig_controller_button {
+    IG_CONTROLLER_BUTTON_SELECT = 0,
+    IG_CONTROLLER_BUTTON_LEFT_STICK = 1,
+    IG_CONTROLLER_BUTTON_RIGHT_STICK = 2,
+    IG_CONTROLLER_BUTTON_START = 3,
+    IG_CONTROLLER_BUTTON_DPAD_UP = 4,
+    IG_CONTROLLER_BUTTON_DPAD_RIGHT = 5,
+    IG_CONTROLLER_BUTTON_DPAD_DOWN = 6,
+    IG_CONTROLLER_BUTTON_DPAD_LEFT = 7,
+    IG_CONTROLLER_BUTTON_LEFT_TRIGGER = 8,
+    IG_CONTROLLER_BUTTON_RIGHT_TRIGGER = 9,
+    IG_CONTROLLER_BUTTON_LEFT_SHOULDER = 10,
+    IG_CONTROLLER_BUTTON_RIGHT_SHOULDER = 11,
+    IG_CONTROLLER_BUTTON_FACE_UP = 12,
+    IG_CONTROLLER_BUTTON_FACE_RIGHT = 13,
+    IG_CONTROLLER_BUTTON_FACE_DOWN = 14,
+    IG_CONTROLLER_BUTTON_FACE_LEFT = 15,
+    IG_CONTROLLER_BUTTON_16 = 16,
+    IG_CONTROLLER_BUTTON_17 = 17,
+    IG_CONTROLLER_BUTTON_18 = 18,
+    IG_CONTROLLER_BUTTON_19 = 19,
+    IG_CONTROLLER_BUTTON_20 = 20,
+    IG_CONTROLLER_BUTTON_21 = 21,
+    IG_CONTROLLER_BUTTON_22 = 22,
+    IG_CONTROLLER_BUTTON_23 = 23,
+    IG_CONTROLLER_BUTTON_24 = 24,
+    IG_CONTROLLER_BUTTON_25 = 25,
+    IG_CONTROLLER_BUTTON_26 = 26,
+    IG_CONTROLLER_BUTTON_27 = 27,
+    IG_CONTROLLER_BUTTON_28 = 28,
+    IG_CONTROLLER_BUTTON_29 = 29,
+    IG_CONTROLLER_BUTTON_30 = 30,
+    IG_CONTROLLER_BUTTON_31 = 31,
+    IG_CONTROLLER_BUTTON_MAX = 32,
+    IG_CONTROLLER_BUTTON_UNMAPPED = 0xffff
+} ig_controller_button;
 
-typedef enum {
-    X2_CONTROLLER_UNKNOWN = 0,
-    X2_CONTROLLER_PSX2_PELICAN_16BUTTONS,
-    X2_CONTROLLER_PSX2_SMARTJOY_12BUTTONS,
-    X2_CONTROLLER_PSX2_XSERIES_12BUTTONS,
-    X2_CONTROLLER_PSX2_ELECOM_12BUTTONSPOV,
-    X2_CONTROLLER_PSX2_ELECOM_16BUTTONS,
-    X2_CONTROLLER_PSX2_SANWA_16BUTTONS,
-    X2_CONTROLLER_XBOX360_MICROSOFT_10BUTTONSPOV,
-    X2_CONTROLLER_TYPE_COUNT
-} x2_controller_type;
+/* Alchemy's extracted Win32 backend exposes this controller-type vocabulary.
+ * It is retained as engine semantics, not asserted as a guest object layout. */
+typedef enum ig_controller_type {
+    IG_CONTROLLER_TYPE_UNKNOWN = 0,
+    IG_CONTROLLER_TYPE_PS2_PELICAN_16BUTTONS,
+    IG_CONTROLLER_TYPE_PS2_SMARTJOY_12BUTTONS,
+    IG_CONTROLLER_TYPE_PS2_XSERIES_12BUTTONS,
+    IG_CONTROLLER_TYPE_PS2_ELECOM_12BUTTONS_POV,
+    IG_CONTROLLER_TYPE_PS2_ELECOM_16BUTTONS,
+    IG_CONTROLLER_TYPE_PS2_SANWA_16BUTTONS,
+    IG_CONTROLLER_TYPE_XBOX360_MICROSOFT_10BUTTONS_POV,
+    IG_CONTROLLER_TYPE_COUNT
+} ig_controller_type;
 
-typedef struct x2_controller {
+typedef struct ig_controller {
     uint16_t id;
     uint32_t button_state;
-    float pressure[X2_BUTTON_COUNT];
+    float pressure[IG_CONTROLLER_BUTTON_COUNT];
     float joystick[2][2];
     uint8_t connected;
-    x2_controller_type type;
+    ig_controller_type type;
     uint8_t is_console;
-    void *impl;
-    uint32_t impl_id;
-} x2_controller;
+    void *backend_handle;
+    uint32_t device_id;
+} ig_controller;
 
-typedef struct x2_controller_manager x2_controller_manager;
+typedef struct ig_controller_manager ig_controller_manager;
 
-typedef void (*x2_controller_connection_cb)(x2_controller_manager *man, x2_controller *controller);
-typedef void (*x2_controller_disconnection_cb)(x2_controller_manager *man, x2_controller *controller);
+typedef struct ig_controller_device {
+    uint32_t device_id;
+    void *backend_handle;
+    ig_controller_type type;
+    uint8_t is_console;
+} ig_controller_device;
 
-struct x2_controller_manager {
-    x2_controller controllers[X2_MAX_CONTROLLERS];
+typedef void (*ig_controller_connection_cb)(ig_controller_manager *manager,
+                                             ig_controller *controller);
+typedef void (*ig_controller_disconnection_cb)(ig_controller_manager *manager,
+                                                ig_controller *controller);
+
+struct ig_controller_manager {
+    ig_controller controllers[IG_CONTROLLER_MAX_COUNT];
     int count;
-    x2_controller_connection_cb on_connect;
-    x2_controller_disconnection_cb on_disconnect;
+    ig_controller_connection_cb on_connect;
+    ig_controller_disconnection_cb on_disconnect;
     void *userdata;
 };
 
-void x2_controller_manager_init(x2_controller_manager *man);
-void x2_controller_manager_shutdown(x2_controller_manager *man);
-void x2_controller_manager_set_callbacks(x2_controller_manager *man,
-                                         x2_controller_connection_cb on_connect,
-                                         x2_controller_disconnection_cb on_disconnect,
+void ig_controller_manager_init(ig_controller_manager *manager);
+void ig_controller_manager_shutdown(ig_controller_manager *manager);
+void ig_controller_manager_set_callbacks(ig_controller_manager *manager,
+                                         ig_controller_connection_cb on_connect,
+                                         ig_controller_disconnection_cb on_disconnect,
                                          void *userdata);
-int x2_controller_manager_get_count(const x2_controller_manager *man);
-x2_controller *x2_controller_manager_get(const x2_controller_manager *man, int index);
-x2_controller *x2_controller_manager_add(x2_controller_manager *man);
-void x2_controller_manager_remove(x2_controller_manager *man, int index);
-x2_controller *x2_controller_manager_find_by_impl(const x2_controller_manager *man,
-                                                   uint32_t impl_id);
+int ig_controller_manager_get_count(const ig_controller_manager *manager);
+ig_controller *ig_controller_manager_get(const ig_controller_manager *manager, int index);
+ig_controller *ig_controller_manager_connect(ig_controller_manager *manager,
+                                             const ig_controller_device *device);
+void ig_controller_manager_disconnect(ig_controller_manager *manager, uint32_t device_id);
+ig_controller *ig_controller_manager_find(const ig_controller_manager *manager,
+                                          uint32_t device_id);
 
-int x2_controller_is_connected(const x2_controller *controller);
-uint32_t x2_controller_get_buttons_state(const x2_controller *controller);
-int x2_controller_get_button_state(const x2_controller *controller, x2_button button);
-float x2_controller_get_button_pressure(const x2_controller *controller, x2_button button);
-void x2_controller_set_button_state(x2_controller *controller, x2_button button, int pressed);
-void x2_controller_set_button_pressure(x2_controller *controller, x2_button button, float pressure);
-void x2_controller_get_joystick(const x2_controller *controller, unsigned int stick,
+int ig_controller_is_connected(const ig_controller *controller);
+uint32_t ig_controller_get_buttons_state(const ig_controller *controller);
+int ig_controller_get_button_state(const ig_controller *controller,
+                                   ig_controller_button button);
+float ig_controller_get_button_pressure(const ig_controller *controller,
+                                        ig_controller_button button);
+void ig_controller_set_button_state(ig_controller *controller, ig_controller_button button,
+                                    int pressed);
+void ig_controller_set_button_pressure(ig_controller *controller, ig_controller_button button,
+                                       float pressure);
+void ig_controller_get_joystick(const ig_controller *controller, unsigned int stick,
                                 float *x, float *y);
-void x2_controller_set_joystick(x2_controller *controller, unsigned int stick, float x, float y);
-void x2_controller_set_rumble(x2_controller *controller, int motor, float speed);
+void ig_controller_set_joystick(ig_controller *controller, unsigned int stick, float x, float y);
 
 #endif

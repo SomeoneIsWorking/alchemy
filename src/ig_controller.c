@@ -1,123 +1,145 @@
 #include "ig_controller.h"
 
+#include <stddef.h>
 #include <string.h>
 
-void x2_controller_manager_init(x2_controller_manager *man)
+void ig_controller_manager_init(ig_controller_manager *manager)
 {
-    memset(man, 0, sizeof(*man));
+    memset(manager, 0, sizeof(*manager));
 }
 
-void x2_controller_manager_shutdown(x2_controller_manager *man)
+void ig_controller_manager_shutdown(ig_controller_manager *manager)
 {
-    for (int i = 0; i < man->count; ++i) {
-        x2_controller *c = &man->controllers[i];
-        if (c->impl && c->connected) {
-            if (man->on_disconnect) {
-                man->on_disconnect(man, c);
-            }
+    for (int i = 0; i < IG_CONTROLLER_MAX_COUNT; ++i) {
+        ig_controller *controller = &manager->controllers[i];
+        if (controller->connected && manager->on_disconnect) {
+            manager->on_disconnect(manager, controller);
         }
-        memset(c, 0, sizeof(*c));
     }
-    man->count = 0;
+    memset(manager->controllers, 0, sizeof(manager->controllers));
+    manager->count = 0;
 }
 
-void x2_controller_manager_set_callbacks(x2_controller_manager *man,
-                                         x2_controller_connection_cb on_connect,
-                                         x2_controller_disconnection_cb on_disconnect,
+void ig_controller_manager_set_callbacks(ig_controller_manager *manager,
+                                         ig_controller_connection_cb on_connect,
+                                         ig_controller_disconnection_cb on_disconnect,
                                          void *userdata)
 {
-    man->on_connect = on_connect;
-    man->on_disconnect = on_disconnect;
-    man->userdata = userdata;
+    manager->on_connect = on_connect;
+    manager->on_disconnect = on_disconnect;
+    manager->userdata = userdata;
 }
 
-int x2_controller_manager_get_count(const x2_controller_manager *man)
+int ig_controller_manager_get_count(const ig_controller_manager *manager)
 {
-    return man->count;
+    return manager->count;
 }
 
-x2_controller *x2_controller_manager_get(const x2_controller_manager *man, int index)
+ig_controller *ig_controller_manager_get(const ig_controller_manager *manager, int index)
 {
-    if (index < 0 || index >= man->count) {
+    if (index < 0 || index >= manager->count) {
         return NULL;
     }
-    return (x2_controller *)&man->controllers[index];
-}
 
-x2_controller *x2_controller_manager_add(x2_controller_manager *man)
-{
-    if (man->count >= X2_MAX_CONTROLLERS) {
-        return NULL;
-    }
-    x2_controller *c = &man->controllers[man->count];
-    memset(c, 0, sizeof(*c));
-    ++man->count;
-    if (man->on_connect) {
-        man->on_connect(man, c);
-    }
-    return c;
-}
-
-void x2_controller_manager_remove(x2_controller_manager *man, int index)
-{
-    if (index < 0 || index >= man->count) {
-        return;
-    }
-    x2_controller *c = &man->controllers[index];
-    if (c->impl && c->connected) {
-        if (man->on_disconnect) {
-            man->on_disconnect(man, c);
+    for (int i = 0; i < IG_CONTROLLER_MAX_COUNT; ++i) {
+        if (!manager->controllers[i].connected) {
+            continue;
         }
-    }
-    int n = man->count - index - 1;
-    if (n > 0) {
-        memmove(&man->controllers[index], &man->controllers[index + 1],
-                (size_t)n * sizeof(x2_controller));
-    }
-    memset(&man->controllers[man->count - 1], 0, sizeof(x2_controller));
-    --man->count;
-}
-
-x2_controller *x2_controller_manager_find_by_impl(const x2_controller_manager *man,
-                                                   uint32_t impl_id)
-{
-    for (int i = 0; i < man->count; ++i) {
-        if (man->controllers[i].impl_id == impl_id) {
-            return (x2_controller *)&man->controllers[i];
+        if (index-- == 0) {
+            return (ig_controller *)&manager->controllers[i];
         }
     }
     return NULL;
 }
 
-int x2_controller_is_connected(const x2_controller *controller)
+ig_controller *ig_controller_manager_find(const ig_controller_manager *manager,
+                                          uint32_t device_id)
 {
-    return controller->connected;
+    for (int i = 0; i < IG_CONTROLLER_MAX_COUNT; ++i) {
+        ig_controller *controller = (ig_controller *)&manager->controllers[i];
+        if (controller->connected && controller->device_id == device_id) {
+            return controller;
+        }
+    }
+    return NULL;
 }
 
-uint32_t x2_controller_get_buttons_state(const x2_controller *controller)
+ig_controller *ig_controller_manager_connect(ig_controller_manager *manager,
+                                             const ig_controller_device *device)
 {
-    return controller->button_state;
+    ig_controller *controller;
+
+    if (!device || device->device_id == 0 ||
+        ig_controller_manager_find(manager, device->device_id)) {
+        return NULL;
+    }
+    for (int i = 0; i < IG_CONTROLLER_MAX_COUNT; ++i) {
+        controller = &manager->controllers[i];
+        if (controller->connected) {
+            continue;
+        }
+
+        memset(controller, 0, sizeof(*controller));
+        controller->id = (uint16_t)i;
+        controller->device_id = device->device_id;
+        controller->backend_handle = device->backend_handle;
+        controller->type = device->type;
+        controller->is_console = device->is_console;
+        controller->connected = 1;
+        ++manager->count;
+        if (manager->on_connect) {
+            manager->on_connect(manager, controller);
+        }
+        return controller;
+    }
+    return NULL;
 }
 
-int x2_controller_get_button_state(const x2_controller *controller, x2_button button)
+void ig_controller_manager_disconnect(ig_controller_manager *manager, uint32_t device_id)
 {
-    if (button >= X2_BUTTON_MAX) {
+    ig_controller *controller = ig_controller_manager_find(manager, device_id);
+    if (!controller) {
+        return;
+    }
+    if (manager->on_disconnect) {
+        manager->on_disconnect(manager, controller);
+    }
+    memset(controller, 0, sizeof(*controller));
+    --manager->count;
+}
+
+int ig_controller_is_connected(const ig_controller *controller)
+{
+    return controller && controller->connected;
+}
+
+uint32_t ig_controller_get_buttons_state(const ig_controller *controller)
+{
+    return controller ? controller->button_state : 0;
+}
+
+int ig_controller_get_button_state(const ig_controller *controller,
+                                   ig_controller_button button)
+{
+    if (!controller || button >= IG_CONTROLLER_BUTTON_MAX) {
         return 0;
     }
     return ((controller->button_state >> button) & 1u) == 1u;
 }
 
-float x2_controller_get_button_pressure(const x2_controller *controller, x2_button button)
+float ig_controller_get_button_pressure(const ig_controller *controller,
+                                        ig_controller_button button)
 {
-    if (button >= X2_BUTTON_MAX) {
+    if (!controller || button >= IG_CONTROLLER_BUTTON_MAX) {
         return 0.0f;
     }
     return controller->pressure[button];
 }
 
-void x2_controller_set_button_state(x2_controller *controller, x2_button button, int pressed)
+void ig_controller_set_button_state(ig_controller *controller, ig_controller_button button,
+                                    int pressed)
 {
-    if (button >= X2_BUTTON_MAX) {
+    if (!controller || button >= IG_CONTROLLER_BUTTON_MAX) {
         return;
     }
     if (pressed) {
@@ -127,18 +149,27 @@ void x2_controller_set_button_state(x2_controller *controller, x2_button button,
     }
 }
 
-void x2_controller_set_button_pressure(x2_controller *controller, x2_button button, float pressure)
+void ig_controller_set_button_pressure(ig_controller *controller, ig_controller_button button,
+                                       float pressure)
 {
-    if (button >= X2_BUTTON_MAX) {
+    if (!controller || button >= IG_CONTROLLER_BUTTON_MAX) {
         return;
+    }
+    if (pressure < 0.0f) {
+        pressure = 0.0f;
+    } else if (pressure > 1.0f) {
+        pressure = 1.0f;
     }
     controller->pressure[button] = pressure;
 }
 
-void x2_controller_get_joystick(const x2_controller *controller, unsigned int stick,
+void ig_controller_get_joystick(const ig_controller *controller, unsigned int stick,
                                 float *x, float *y)
 {
-    if (stick > 1) {
+    if (!x || !y) {
+        return;
+    }
+    if (!controller || stick > 1) {
         *x = 0.0f;
         *y = 0.0f;
         return;
@@ -147,9 +178,9 @@ void x2_controller_get_joystick(const x2_controller *controller, unsigned int st
     *y = controller->joystick[stick][1];
 }
 
-void x2_controller_set_joystick(x2_controller *controller, unsigned int stick, float x, float y)
+void ig_controller_set_joystick(ig_controller *controller, unsigned int stick, float x, float y)
 {
-    if (stick > 1) {
+    if (!controller || stick > 1) {
         return;
     }
     controller->joystick[stick][0] = x;
