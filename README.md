@@ -1,8 +1,10 @@
 # alchemy
 
-The **Alchemy** (Gap) engine layer, as a library: the IGB asset readers and the
-engine's input abstraction, with the reverse-engineering write-ups that explain
-the formats.
+This repository is the partial native foundation for a shared **Alchemy** (Gap)
+engine. Today it provides measured IGB readers and payload decoders, offline
+format tools, an abstract controller state model, and an SDL3 controller
+backend. It is not yet a complete engine and neither gameplay product currently
+links it.
 
 Alchemy is Raven/Vicarious Visions' engine. The games that matter here:
 
@@ -12,9 +14,16 @@ Alchemy is Raven/Vicarious Visions' engine. The games that matter here:
 | Marvel Ultimate Alliance | Xbox 360, PS2, Xbox, PS3, PSP, PC |
 
 This repo exists because those two games span platforms with different CPUs and
-GPU payload formats. An engine layer nested inside one platform's port gets
-duplicated the moment the second game starts; this one is a peer, consumed by
-each port.
+GPU payload formats. Title-neutral engine behavior belongs in one peer rather
+than being copied between ports. The intended consumers are X-Men Legends II
+and Marvel: Ultimate Alliance; actual runtime consumption is still missing.
+
+X-Men 2 currently pins this repository and uses its XMLB/ARK tooling during
+asset preparation and reverse engineering, but `x2native` explicitly links
+none of the libraries. MUA has no build, source, launcher, or tool dependency on
+this repository yet. X-Men 2 must establish the first conformed runtime
+contract; MUA is deferred until all X-Men 2 goals are verified and then adopts
+the proven shared surface.
 
 ## What's here
 
@@ -50,13 +59,30 @@ cmake -S . -B build && cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure     # enbaya, controller, xmlb_roundtrip
 ```
 
-Standalone it builds the viewers and tools. Consumed by a port
-(`add_subdirectory`) it builds only the two libraries, `alchemy` and
-`alchemy_input`.
+Standalone it builds the viewers and tools. Added as a subdirectory, it exposes
+the `alchemy` and `alchemy_input` libraries plus `alchemy_input_sdl` when SDL3
+is available. No current gameplay product links those targets.
 
 **Two SDLs on purpose.** SDL3 backs `alchemy_input`, because that is what a live
 port links. SDL2 backs the viewers, which are separate binaries — that split is
 what stops two SDLs being linked into one process. Don't collapse them.
+
+## Integration target
+
+The first candidate shipping contract is the existing controller layer. X-Men
+2 needs a title-local adapter from shared controller snapshots to the retained
+guest `igControllerManager` ABI, with its current DirectInput path retained as
+an A/B oracle until buttons, pressure, axes, callbacks, hotplug, and stable
+identity agree. Merely provisioning this repository or importing `xmlb.py` is
+not that proof.
+
+After X-Men 2 completes all of its project goals, MUA adds its separately
+recovered PPC/ARK ABI adapter to the same title-neutral contracts. Guest object
+layouts, addresses, and player policy remain in each title repository.
+
+The migration is specified in [`docs/migration.md`](docs/migration.md), and
+current capability coverage is recorded in
+[`docs/project-state.md`](docs/project-state.md).
 
 ## Platform coverage
 
