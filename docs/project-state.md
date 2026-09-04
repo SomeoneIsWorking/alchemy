@@ -3,12 +3,13 @@
 ## Comparison baseline
 
 The baseline is every Alchemy-engine game port carrying its own container decoders, archive tools,
-asset viewers, and controller glue. This library provides one measured, reusable native owner for the
-shared IGB/XMLB/ARK formats, semantic assets, inspection tools, and platform-neutral input.
+asset viewers, controller glue, and eventually title-local native engine replacements. This
+repository already provides measured shared libraries and tools, but no gameplay product currently
+links and exercises them as its engine boundary.
 
 ## Current focus
 
-S004 is the current focus.
+S011 is the current focus.
 
 ## Capability inventory
 
@@ -24,6 +25,10 @@ S004 is the current focus.
 | S008 | Enbaya-compressed animation payloads decode into native animation data | partial | S001 | G001 |
 | S009 | XMLB assets can be decoded, edited, and round-tripped by shared tooling | partial | — | G001 |
 | S010 | FB/WAD, ARK class/vtable, font, and conversation formats have reusable inspection tools | partial | — | G001 |
+| S011 | X-Men 2 gameplay links and executes a conformed shared Alchemy contract | missing | S004 | G001 |
+| S012 | MUA gameplay links and executes proven shared Alchemy contracts | missing | S011 | G001 |
+| S013 | Shipping library configuration, diagnostics, language, and dependency boundaries are mechanically enforced | partial | — | G002 |
+| S014 | Each consumer resolves one immutable Alchemy revision for tools and runtime targets | partial | — | G001, G002 |
 
 ## Capability details
 
@@ -88,3 +93,42 @@ Gap: unmeasured format variants and title coverage remain incomplete.
 The repository contains production FB/WAD, ARK graph/vtable, font, and conversation tools.
 
 Gap: each tool's format and title coverage remains evidence-driven and incomplete.
+
+### S011 — X-Men 2 gameplay consumption
+
+Missing capability: X-Men 2 pins this repository and uses shared XMLB/ARK tooling, but its CMake
+authority explicitly links none of the `alchemy`, `alchemy_input`, or `alchemy_input_sdl` targets and
+its product source calls no shared runtime API.
+
+Gap: link the first narrow contract through the shipping build and a title-local guest ABI adapter.
+The existing `alchemy_input` snapshot is the first candidate; retain DirectInput as the oracle until
+button bits, pressure, axes, callbacks, lifecycle, and stable identity pass A/B conformance.
+
+### S012 — MUA gameplay consumption
+
+Missing capability: MUA has no Alchemy dependency resolver, build edge, source include, tool import,
+or runtime call path. Its current documentation describes only the intended ownership direction.
+
+Gap: MUA remains deferred until every X-Men 2 project goal is verified. After that deferral lifts,
+recover the MUA PPC/ARK guest ABI and adapt it to the contracts X-Men 2 has already proven; do not
+create an MUA-local engine implementation.
+
+### S013 — Runtime API and quality enforcement
+
+The repository already separates asset decoding, input, viewers, and tools, and it has a source-size
+structure check. The proven format decoders are usable C seams.
+
+Gap: shipping library code still contains `X2VIEW_*` process-environment switches and direct stderr
+diagnostics in `src/igb_mesh.c`; the current verifier does not enforce the required config/logger
+boundary. Replace those policy reads with typed immutable options supplied by the caller, inject one
+configurable Lucent logger for runtime diagnostics, and make the gate reject regressions. New
+stateful engine owners/adapters use focused C++20 RAII rather than global state; the existing pure C
+parsers are not rewritten merely for style.
+
+### S014 — Consumer dependency authority
+
+X-Men 2's bootstrap pins one immutable revision of this repository and uses it for offline tooling.
+
+Gap: that pin does not feed any runtime CMake target, and MUA has no resolver or pin. Each consumer
+needs one authoritative immutable revision used by both tooling and runtime integration, with no
+vendored or sibling-checkout fallback.
