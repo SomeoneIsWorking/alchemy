@@ -30,6 +30,19 @@ S011 is the current focus.
 | S013 | Shipping library configuration, diagnostics, language, and dependency boundaries are mechanically enforced | verified | — | G002 |
 | S014 | Each consumer resolves one immutable Alchemy revision for tools and runtime targets | partial | — | G001, G002 |
 
+## Host CI support
+
+The workflow uses complete-history checkouts and synthetic/asset-free tests;
+the real-disc corpus test remains explicitly skipped when no user corpus is
+provided:
+
+| Host | State | Evidence or exact gap |
+| --- | --- | --- |
+| Linux x86-64 | supported | `.github/workflows/ci.yml` installs SDL2/SDL3, builds viewers and both input paths with Clang, and runs the complete CTest graph. |
+| macOS arm64 | supported | `.github/workflows/ci.yml` installs SDL2/SDL3, builds viewers and both input paths with Apple Clang, and runs the complete CTest graph. |
+| Windows x86-64 | unsupported | The current top-level CMake graph unconditionally links the POSIX `m` library into the shared C and viewer targets and has no Windows replacement; a Windows job would fail at link time before exercising Alchemy. Portability must be fixed at that owner before adding a Windows job. |
+| Android arm64-v8a | missing | Alchemy is intended for MUA's Android-capable shared engine path, but no NDK library build or consuming title package/device discriminator exists yet. Android package/device mechanics belong to `shared/android-port`; configure-only evidence is intentionally absent. |
+
 ## Capability details
 
 ### S001 — Container coverage
