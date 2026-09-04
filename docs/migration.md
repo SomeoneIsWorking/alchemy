@@ -12,10 +12,13 @@ adoption.
 ## Ownership boundary
 
 The shared repository owns title-neutral Alchemy semantics and their runtime
-lifetime. Each game owns its executable identity, guest addresses and object
-layout, native override registration, player/game policy, and conformance
-adapter. CPU execution and console/OS services remain in `x86port`,
-`xenonport`, or the host layer; they do not move here.
+lifetime. The neutral targets depend on no CPU/console host. Optional,
+separately selectable `alchemy/x86` and `alchemy/x360` adapters may consume the
+corresponding host's public execution/context interfaces when a proven engine
+contract needs that translation. CPU execution and console/OS services remain
+in `x86port` or the Xbox 360 host; they do not move here. Each game still owns
+its executable identity, hashes, guest addresses/layouts, native override
+registration, player/game policy, and thin binding into the relevant adapter.
 
 Do not design a universal engine before a real seam requires it. Begin with one
 narrow interface already supported by binary evidence, retain the ordinary
@@ -23,17 +26,20 @@ guest path as the differential oracle, and move only the invariant contract.
 
 ## Migration order
 
-1. Remove title/viewer policy from the shipping library boundary.
-   `src/igb_mesh.c` must receive typed immutable options instead of reading
-   `X2VIEW_*` environment variables, and runtime diagnostics must use one
-   injected configurable Lucent logger instead of stderr. Extend the structure
-   gate to reject both regressions and shared-library title vocabulary. Keep
-   the proven pure C parsers in C; use focused C++20 RAII owners for new
-   stateful runtime services and adapters.
+1. The shipping library boundary is now free of title/viewer policy.
+   `igb_scene_load` receives immutable `igb_scene_options` and emits typed
+   `igb_scene_diagnostic` events to an injected observer; it no longer reads
+   `X2VIEW_*` or writes stderr. The application maps diagnostics into Lucent.
+   The structure gate rejects process configuration, direct diagnostics,
+   forbidden consumer dependencies, and shared-library title vocabulary. The
+   proven pure C parsers remain C, while the stateful input owner is a focused
+   C++20 RAII API.
 2. Make X-Men 2 the first gameplay consumer. Its one existing Alchemy pin must
    feed the runtime CMake dependency as well as tools. Link the required shared
-   input target and add a title-local adapter between shared snapshots and the
-   retained PC `igControllerManager` ABI.
+   `alchemy::input` target and add a title-local adapter between
+   `ControllerManager` snapshots and the retained PC `igControllerManager` ABI.
+   If reusable x86port context translation is required, place only that part in
+   the optional `alchemy/x86` layer; keep addresses and registration in X-Men 2.
 3. A/B-verify the shipping X-Men 2 path against its retained DirectInput
    implementation: button bits, pressure, axes, callbacks, hotplug, stable
    identity, and resource lifetime must agree. Only then may the replaced
@@ -42,10 +48,11 @@ guest path as the differential oracle, and move only the invariant contract.
    X-Men 2 completes its other project goals. A checkout, linked-but-unused
    target, unit-only call, or offline asset tool does not establish runtime
    ownership.
-5. Keep MUA deferred until every X-Men 2 project goal is verified. After that,
-   add one MUA resolver/pin and its separately recovered PPC/ARK ABI adapter,
-   then prove it calls the same shared contracts without moving MUA addresses
-   or policy into this repository.
+5. Keep MUA and `alchemy/x360` work deferred until every X-Men 2 project goal is
+   verified. After that, add one MUA resolver/pin, recover its PPC/ARK binding,
+   and introduce only reusable Alchemy-to-host translation in the optional
+   `alchemy/x360` layer. Prove it calls the same shared contracts without moving
+   MUA addresses, hashes, layouts, registration, or policy into this repository.
 
 ## Acceptance
 

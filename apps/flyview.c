@@ -8,6 +8,7 @@
 #include "igb.h"
 #include "igb_mesh.h"
 #include "igb_raster.h"
+#include "viewer_config.h"
 
 #define W 640
 #define H 480
@@ -65,19 +66,25 @@ static void build_view(float eye[3], float yaw, float pitch, float out[16])
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
-        fprintf(stderr, "usage: flyview <file.igb>\n");
+    alchemy_viewer_config config;
+    if (!alchemy_viewer_config_parse(argc, argv, ALCHEMY_VIEWER_ALLOW_TRANSFORMS, &config) ||
+        config.first_extra_argument != argc) {
+        fprintf(stderr, "usage: flyview [--compose-transforms] [--screenshot PATH] <file.igb>\n");
         return 1;
     }
-    const char *shot = getenv("X2VIEW_SHOT");
 
     igb f;
-    if (igb_open(&f, argv[1]) != 0) {
+    if (igb_open(&f, config.input_path) != 0) {
         fprintf(stderr, "igb_open failed\n");
         return 1;
     }
     igb_scene sc;
-    if (igb_scene_load(&f, &sc) != 0 || sc.n_meshes == 0) {
+    const igb_scene_options scene_options = {
+        .compose_transforms = config.compose_transforms,
+        .diagnostic = NULL,
+        .diagnostic_context = NULL,
+    };
+    if (igb_scene_load(&f, &scene_options, &sc) != 0 || sc.n_meshes == 0) {
         fprintf(stderr, "no meshes found\n");
         igb_close(&f);
         return 1;
@@ -107,11 +114,11 @@ int main(int argc, char **argv)
         pitch = atan2f(to[1], horiz);
     }
 
-    if (shot) {
+    if (config.screenshot_path) {
         float view[16];
         build_view(eye, yaw, pitch, view);
-        igb_raster_save_bmp(ras, view, W, H, shot);
-        printf("wrote %s\n", shot);
+        igb_raster_save_bmp(ras, view, W, H, config.screenshot_path);
+        printf("wrote %s\n", config.screenshot_path);
         igb_raster_free(ras);
         igb_scene_free(&sc);
         igb_close(&f);

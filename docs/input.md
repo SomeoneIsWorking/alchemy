@@ -20,28 +20,41 @@ leaving players, assignment policy, and prompt choice.
 
 ## Current native slice
 
-- `ig_controller` is the platform-neutral current snapshot: connection,
-  Alchemy button bits and pressure, two sticks, controller type, and an opaque
-  backend identity.
-- `ig_controller_manager` keeps four stable slots. Disconnecting one device
-  does not move the remaining devices, so a title adapter can retain a device
-  identity across hotplug without confusing it with player order.
-- `ig_sdl_controller_initialize` admits devices present at startup.
-- The application forwards its centrally-polled SDL events to
-  `ig_sdl_controller_handle_event`; a late `SDL_EVENT_GAMEPAD_ADDED` goes
-  through the same admission path as startup enumeration.
-- `ig_sdl_controller_update` reads a complete SDL state snapshot. Event
+- `ControllerState` owns the platform-neutral current snapshot: the exact
+  32-bit Alchemy button word, clamped pressure, and two sticks.
+- `ControllerManager` keeps four stable `SlotId` values keyed by typed
+  `DeviceId`. Disconnecting one device does not move the remaining devices, so
+  a title adapter can retain identity across hotplug without confusing it with
+  player order.
+- `connect`, `publish`, `updateDescriptor`, and `disconnect` form the
+  transport-neutral producer seam. X-Men 2 can feed its retained DirectInput
+  snapshots through this target without linking SDL, and tests use the exact
+  same production path.
+- `ConnectionObserver` receives value-owning typed connect/disconnect events;
+  disconnect events retain the last valid controller snapshot.
+- `SdlControllerBackend::initialize` admits devices present at startup. The
+  application forwards its centrally-polled SDL events through `handleEvent`;
+  a late `SDL_EVENT_GAMEPAD_ADDED` goes through the same admission path.
+- `SdlControllerBackend::update` reads a complete SDL state snapshot. Event
   delivery therefore owns lifecycle and immediate changes, while the snapshot
   prevents state from depending on every motion event surviving unrelated UI
   consumers.
-- `ig_sdl_controller_shutdown` and `ig_sdl_controller_set_rumble` own SDL
-  handles and output. The generic model never includes an SDL header.
+- `SdlControllerBackend` uses a pImpl so SDL handles never enter the generic
+  model. Its destructor closes every handle and publishes matching disconnects;
+  `setRumble` owns output.
+- `SdlControllerSettings` is immutable constructor input. A diagnostic observer
+  is a required constructor dependency, so async SDL failures cannot silently
+  disappear; it receives typed `SdlDiagnostic` events and maps them once into
+  the consumer's configurable Lucent logger.
 
-The controller test uses two virtual devices to exercise both startup
+The SDL controller test uses two virtual devices to exercise both startup
 enumeration and late attachment through the production path. Its event pump is
 deliberately in the test host, not in the backend. The structure gate refuses
-an `SDL_PollEvent` call in the backend and refuses reintroduction of `x2_`/`X2_`
-vocabulary into the shared input sources.
+an `SDL_PollEvent` call in the backend, title vocabulary, process-configuration
+reads, direct diagnostics, and forbidden consumer dependencies in shipping
+sources. The platform-neutral test separately proves exact bits, pressure
+bounds, external snapshot publication, capacity refusal, lifecycle events, and
+stable-slot reuse.
 
 ## Compatibility and remaining work
 

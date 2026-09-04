@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "igb.h"
+#include "viewer_config.h"
 
 static SDL_Texture *load_texture(SDL_Renderer *renderer, const char *path, int mip, int *tw, int *th)
 {
@@ -55,11 +56,13 @@ static SDL_Texture *load_texture(SDL_Renderer *renderer, const char *path, int m
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
-        fprintf(stderr, "usage: x2view <file.igb> [mip]\n");
+    alchemy_viewer_config config;
+    if (!alchemy_viewer_config_parse(argc, argv, 0, &config) ||
+        config.first_extra_argument + 1 < argc) {
+        fprintf(stderr, "usage: x2view [--screenshot PATH] <file.igb> [mip]\n");
         return 1;
     }
-    int mip = argc >= 3 ? atoi(argv[2]) : -1;
+    int mip = config.first_extra_argument < argc ? atoi(argv[config.first_extra_argument]) : -1;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
@@ -85,16 +88,15 @@ int main(int argc, char **argv)
     }
 
     int tw = 0, th = 0;
-    SDL_Texture *tex = load_texture(renderer, argv[1], mip, &tw, &th);
+    SDL_Texture *tex = load_texture(renderer, config.input_path, mip, &tw, &th);
     if (!tex) {
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(win);
         SDL_Quit();
         return 1;
     }
-    printf("displaying %dx%d (%s)\n", tw, th, argv[1]);
+    printf("displaying %dx%d (%s)\n", tw, th, config.input_path);
 
-    const char *shot = getenv("X2VIEW_SHOT");
     int running = 1;
     while (running) {
         SDL_Event ev;
@@ -119,15 +121,15 @@ int main(int argc, char **argv)
         };
         SDL_RenderCopy(renderer, tex, NULL, &dst);
         SDL_RenderPresent(renderer);
-        if (shot) {
+        if (config.screenshot_path) {
             SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_ARGB8888, NULL, 0);
             SDL_Surface *surf = SDL_CreateRGBSurface(0, ww, wh, 32, 0, 0, 0, 0);
             if (surf) {
                 SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_ARGB8888,
                                      surf->pixels, surf->pitch);
-                SDL_SaveBMP(surf, shot);
+                SDL_SaveBMP(surf, config.screenshot_path);
                 SDL_FreeSurface(surf);
-                printf("saved %s\n", shot);
+                printf("saved %s\n", config.screenshot_path);
             }
             running = 0;
         }

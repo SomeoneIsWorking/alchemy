@@ -1,14 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(alchemy C)
-
-# Clang is what this library is developed and tested with; AppleClang counts
-# as Clang. Another compiler warns rather than bans -- a fresh machine must
-# not have to install a specific vendor to try a consumer of this layer.
-if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
-    message(WARNING
-            "Alchemy is tested with Clang; configured compiler is "
-            "${CMAKE_C_COMPILER_ID}, which has not been tested. Proceeding.")
-endif()
+project(alchemy LANGUAGES C CXX)
 
 # The Alchemy engine layer: asset readers and the input abstraction shared by
 # every game built on Gap/Alchemy. It knows nothing about a recompiler, a
@@ -21,6 +12,10 @@ endif()
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 find_package(PkgConfig QUIET)
@@ -58,6 +53,7 @@ add_library(alchemy
     src/igb_image.c
     src/igb_internal.c
     src/igb_mesh.c
+    src/igb_object.c
     src/igb_raster.c
     src/igb_anim.c
 )
@@ -68,14 +64,18 @@ target_link_libraries(alchemy PUBLIC m)
 # peer target because it exposes SDL at its host-facing event boundary; tools
 # that only consume engine state must not inherit an SDL dependency.
 add_library(alchemy_input
-    src/ig_controller.c
+    src/input/controller.cpp
 )
-target_include_directories(alchemy_input PUBLIC src)
+add_library(alchemy::input ALIAS alchemy_input)
+target_include_directories(alchemy_input PUBLIC include)
+target_compile_features(alchemy_input PUBLIC cxx_std_20)
 if(ALCHEMY_SDL3)
     add_library(alchemy_input_sdl
-        src/ig_sdl_controller.c
+        src/input/sdl_controller.cpp
     )
-    target_include_directories(alchemy_input_sdl PUBLIC src)
+    add_library(alchemy::input_sdl ALIAS alchemy_input_sdl)
+    target_include_directories(alchemy_input_sdl PUBLIC include)
+    target_compile_features(alchemy_input_sdl PUBLIC cxx_std_20)
     target_link_libraries(alchemy_input_sdl PUBLIC alchemy_input ${ALCHEMY_SDL3})
 endif()
 
@@ -90,10 +90,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_executable(igb_dump tools/igb_dump.c)
     target_link_libraries(igb_dump PRIVATE alchemy)
 
+    add_library(alchemy_viewer_config STATIC apps/viewer_config.c)
+    target_include_directories(alchemy_viewer_config PUBLIC apps)
     if(ALCHEMY_SDL2)
         foreach(view x2view meshview flyview)
             add_executable(${view} apps/${view}.c)
-            target_link_libraries(${view} PRIVATE alchemy m ${ALCHEMY_SDL2})
+            target_link_libraries(${view} PRIVATE alchemy alchemy_viewer_config m ${ALCHEMY_SDL2})
         endforeach()
     else()
         message(STATUS "alchemy: SDL2 not found -- the viewers are NOT built. "
@@ -116,11 +118,26 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
                          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                          SKIP_RETURN_CODE 77)
 
+    add_executable(test_scene_options tests/test_scene_options.c)
+    target_link_libraries(test_scene_options PRIVATE alchemy)
+    target_compile_options(test_scene_options PRIVATE -UNDEBUG)
+    add_test(NAME scene_options COMMAND test_scene_options)
+
+    add_executable(test_viewer_config tests/test_viewer_config.c)
+    target_link_libraries(test_viewer_config PRIVATE alchemy_viewer_config)
+    target_compile_options(test_viewer_config PRIVATE -UNDEBUG)
+    add_test(NAME viewer_config COMMAND test_viewer_config)
+
+    add_executable(test_input tests/test_input.cpp)
+    target_link_libraries(test_input PRIVATE alchemy_input)
+    target_compile_options(test_input PRIVATE -UNDEBUG)
+    add_test(NAME input COMMAND test_input)
+
     if(ALCHEMY_SDL3)
-        add_executable(test_controller tests/test_controller.c)
-        target_link_libraries(test_controller PRIVATE alchemy_input_sdl)
-        target_compile_options(test_controller PRIVATE -UNDEBUG)
-        add_test(NAME controller COMMAND test_controller)
+        add_executable(test_sdl_input tests/test_sdl_input.cpp)
+        target_link_libraries(test_sdl_input PRIVATE alchemy_input_sdl)
+        target_compile_options(test_sdl_input PRIVATE -UNDEBUG)
+        add_test(NAME sdl_input COMMAND test_sdl_input)
     endif()
 
     # XMLB is Raven's binary XML container. The selftest builds its own corpus
@@ -142,4 +159,13 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint.py)
     set_tests_properties(python_lint PROPERTIES SKIP_RETURN_CODE 77)
+
+    add_test(NAME cpp_format
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/cpp_quality.py format)
+    add_test(NAME cpp_tidy
+             COMMAND ${Python3_EXECUTABLE}
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/cpp_quality.py tidy
+                     --build-dir ${CMAKE_BINARY_DIR})
+    set_tests_properties(cpp_format cpp_tidy PROPERTIES SKIP_RETURN_CODE 77)
 endif()

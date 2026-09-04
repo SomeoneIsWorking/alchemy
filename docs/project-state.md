@@ -27,7 +27,7 @@ S011 is the current focus.
 | S010 | FB/WAD, ARK class/vtable, font, and conversation formats have reusable inspection tools | partial | — | G001 |
 | S011 | X-Men 2 gameplay links and executes a conformed shared Alchemy contract | missing | S004 | G001 |
 | S012 | MUA gameplay links and executes proven shared Alchemy contracts | missing | S011 | G001 |
-| S013 | Shipping library configuration, diagnostics, language, and dependency boundaries are mechanically enforced | partial | — | G002 |
+| S013 | Shipping library configuration, diagnostics, language, and dependency boundaries are mechanically enforced | verified | — | G002 |
 | S014 | Each consumer resolves one immutable Alchemy revision for tools and runtime targets | partial | — | G001, G002 |
 
 ## Capability details
@@ -52,8 +52,10 @@ Gap: format and title coverage remains evidence-driven and incomplete beyond the
 
 ### S004 — Native input
 
-The generic controller owner uses stable slots and the SDL backend handles startup devices, forwarded
-hot-plug events, complete snapshots, handles, and rumble.
+The C++20 `ControllerManager` owns typed state, stable slots and value-owning lifecycle events. The
+separate RAII SDL backend handles startup devices, forwarded hot-plug events, complete snapshots,
+handles, rumble, immutable thresholds, and typed diagnostic delivery. A non-SDL producer can publish
+external snapshots through the same manager target.
 
 Gap: X-Men 2 guest substitution/A-B parity and Marvel Ultimate Alliance ARK/vtable ABI integration
 remain unverified.
@@ -101,8 +103,10 @@ authority explicitly links none of the `alchemy`, `alchemy_input`, or `alchemy_i
 its product source calls no shared runtime API.
 
 Gap: link the first narrow contract through the shipping build and a title-local guest ABI adapter.
-The existing `alchemy_input` snapshot is the first candidate; retain DirectInput as the oracle until
-button bits, pressure, axes, callbacks, lifecycle, and stable identity pass A/B conformance.
+The `alchemy::input` target is the first candidate; retain DirectInput as the oracle until button
+bits, pressure, axes, callbacks, lifecycle, and stable identity pass A/B conformance.
+The neutral target must remain host-independent; any reusable x86port context translation belongs
+in a separately selected `alchemy/x86` adapter while exact addresses and registration stay in X-Men 2.
 
 ### S012 — MUA gameplay consumption
 
@@ -111,19 +115,20 @@ or runtime call path. Its current documentation describes only the intended owne
 
 Gap: MUA remains deferred until every X-Men 2 project goal is verified. After that deferral lifts,
 recover the MUA PPC/ARK guest ABI and adapt it to the contracts X-Men 2 has already proven; do not
-create an MUA-local engine implementation.
+create an MUA-local engine implementation. Reusable host translation may live in a separately
+selected `alchemy/x360` adapter; exact MUA identity and bindings remain consumer-owned.
 
 ### S013 — Runtime API and quality enforcement
 
-The repository already separates asset decoding, input, viewers, and tools, and it has a source-size
-structure check. The proven format decoders are usable C seams.
-
-Gap: shipping library code still contains `X2VIEW_*` process-environment switches and direct stderr
-diagnostics in `src/igb_mesh.c`; the current verifier does not enforce the required config/logger
-boundary. Replace those policy reads with typed immutable options supplied by the caller, inject one
-configurable Lucent logger for runtime diagnostics, and make the gate reject regressions. New
-stateful engine owners/adapters use focused C++20 RAII rather than global state; the existing pure C
-parsers are not rewritten merely for style.
+Evidence: `igb_scene_load` accepts immutable typed options and emits typed diagnostic events through
+an injected observer; no shipping library source reads process configuration or writes diagnostics.
+The standalone viewers parse their shared screenshot/transform CLI through one
+`alchemy_viewer_config_parse` owner and contain no environment reads.
+The C++20 input owner uses narrow typed value objects and RAII SDL lifetime. The structure self-test
+proves the normal gate rejects environment reads, direct output, title vocabulary, consumer edges,
+backend event polling, and source growth. `cpp_format` and `cpp_tidy` cover the C++ runtime and tests.
+The pure C parsers remain C, and object lookup was extracted into `src/igb_object.c` instead of
+growing the legacy mesh unit.
 
 ### S014 — Consumer dependency authority
 
