@@ -31,11 +31,13 @@ the proven shared surface.
 src/     igb.c/.h            IGB container reader
          igb_image.c/.h      image discovery and PS2 image formats
          igb_mesh.c/.h       meshes
+         igb_object.c        object/field lookup used by scene decoding
          igb_raster.c/.h     textures
          igb_anim.c/.h       animation, incl. the Enbaya-compressed codec
-         ig_controller.c/.h  the engine's controller abstraction
-         ig_sdl_controller.c SDL3 backend for it
+         input/              C++20 controller registry and SDL3 transport
+include/ alchemy/input/      typed public controller and SDL APIs
 apps/    x2view meshview flyview   asset viewers (SDL2, separate binaries)
+         viewer_config.c/.h shared typed CLI configuration for those viewers
 tools/   igb_dump.c          dump an IGB's structure
          ark_classes.py      recover a module's ARK class graph
          ark_vtables.py      ARK vtable addresses, slots, overrides
@@ -55,26 +57,37 @@ port unchanged.
 ## Build
 
 ```sh
-cmake -S . -B build && cmake --build build -j$(nproc)
-ctest --test-dir build --output-on-failure     # enbaya, controller, xmlb_roundtrip
+CC=clang CXX=clang++ cmake -S . -B build -G Ninja
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 Standalone it builds the viewers and tools. Added as a subdirectory, it exposes
-the `alchemy` and `alchemy_input` libraries plus `alchemy_input_sdl` when SDL3
-is available. No current gameplay product links those targets.
+the `alchemy` and `alchemy::input` libraries plus `alchemy::input_sdl` when SDL3
+is available. The un-namespaced input target names remain the real CMake
+targets; the namespaced aliases make consumer intent explicit. No current
+gameplay product links those targets.
 
-**Two SDLs on purpose.** SDL3 backs `alchemy_input`, because that is what a live
-port links. SDL2 backs the viewers, which are separate binaries — that split is
-what stops two SDLs being linked into one process. Don't collapse them.
+**Two SDLs on purpose.** SDL3 backs the separate `alchemy::input_sdl` transport,
+while the platform-neutral `alchemy::input` target has no SDL dependency. SDL2
+backs the viewers, which are separate binaries — that split prevents two SDLs
+from entering one process. Don't collapse them.
+
+Viewer configuration is explicit CLI input: `--screenshot PATH` is shared by
+all three viewers, while `meshview` and `flyview` also accept
+`--compose-transforms`. The viewers no longer read title-specific environment
+switches, and `igb_scene_load` receives the resulting immutable options.
 
 ## Integration target
 
-The first candidate shipping contract is the existing controller layer. X-Men
-2 needs a title-local adapter from shared controller snapshots to the retained
-guest `igControllerManager` ABI, with its current DirectInput path retained as
-an A/B oracle until buttons, pressure, axes, callbacks, hotplug, and stable
-identity agree. Merely provisioning this repository or importing `xmlb.py` is
-not that proof.
+The first candidate shipping contract is the typed controller layer. X-Men 2
+can feed externally acquired DirectInput state into `ControllerManager` through
+`connect`, `publish`, and `disconnect` while linking only `alchemy::input`; SDL
+ownership stays in the optional peer transport. Its title-local adapter maps
+the read-only shared snapshots to the retained guest `igControllerManager` ABI,
+with DirectInput retained as an A/B oracle until buttons, pressure, axes,
+callbacks, hotplug, and stable identity agree. Merely provisioning this
+repository or importing `xmlb.py` is not that proof.
 
 After X-Men 2 completes all of its project goals, MUA adds its separately
 recovered PPC/ARK ABI adapter to the same title-neutral contracts. Guest object

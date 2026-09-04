@@ -19,21 +19,26 @@ every X-Men 2 project goal is verified, then consumes the proven contracts
 through its own PPC/ARK ABI adapter rather than creating a parallel engine.
 
 It does not own a game's executable, guest addresses, a console kernel or CPU
-execution engine, title-specific scripts, or a shipping renderer. Those live
-in the consuming game port or a shared console-host repository. A behavior is
+execution engine, title-specific scripts, or a shipping renderer. The neutral
+core has zero dependency on x86port or an Xbox 360 host. Optional, separately
+selectable `alchemy/x86` and `alchemy/x360` adapters may consume those hosts'
+public execution/context interfaces when a proven Alchemy contract needs a
+guest bridge. Exact executable hashes, guest addresses/layouts, override
+registration, and title policy remain in each title binding. A behavior is
 shared only after its engine ownership is evidenced; do not move title policy
 here because two games happen to call it.
 
 ## Native input ownership
 
-`src/ig_controller.{c,h}` owns Alchemy's platform-neutral controller snapshot
-and stable device slots. `src/ig_sdl_controller.{c,h}` owns SDL gamepad
-discovery, device handles, translation, rumble, and snapshot refresh. The host
-application owns SDL's one process-wide event pump and forwards every event to
-`ig_sdl_controller_handle_event`; the Alchemy backend must never call
-`SDL_PollEvent` itself. A title owns action bindings, player participation,
-device-to-player policy, and prompt presentation. See `docs/input.md` for the
-binary evidence and the remaining guest-substitution frontier.
+`include/alchemy/input/controller.hpp` and `src/input/controller.cpp` own
+Alchemy's typed controller snapshots, stable device/slot identities, and
+connection events. `SdlControllerBackend` owns SDL gamepad discovery, handles,
+translation, rumble, and snapshot refresh behind a pImpl. The host application
+owns SDL's one process-wide event pump and forwards every event through
+`handleEvent`; the backend must never call `SDL_PollEvent` itself. A title owns
+action bindings, player participation, device-to-player policy, and prompt
+presentation. See `docs/input.md` for the binary evidence and the remaining
+guest-substitution frontier.
 
 This is the first candidate product contract, not a completed integration.
 X-Men 2 must link the shared target, adapt its snapshots to the retained guest
@@ -91,10 +96,11 @@ No shared owner may become a service locator or title-policy container.
 Shipping library code never reads process environment variables or writes
 directly to stderr/platform debug output. Viewer/tool entry points may ingest
 CLI or environment configuration through one typed configuration owner, then
-pass immutable options into the library. Runtime diagnostics go through one
-injected configurable Lucent logger. The normal structure gate must reject
-`getenv`, direct stderr/debug output, `X2*` vocabulary in shipping library code,
-forbidden title dependencies, and source growth beyond the recorded limits.
+pass immutable options into the library. Libraries emit typed diagnostic
+events through an injected observer; the application translates those events
+at one boundary into its configurable Lucent logger. The normal structure gate
+rejects `getenv`, direct stderr/debug output, title vocabulary, forbidden
+consumer dependencies, and source growth beyond the recorded limits.
 
 Agent verification uses Clang in a top-level `build/` child. `scratch/` is for
 disposable run evidence, never compiler output.

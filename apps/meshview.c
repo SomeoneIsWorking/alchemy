@@ -8,6 +8,7 @@
 #include "igb.h"
 #include "igb_mesh.h"
 #include "igb_raster.h"
+#include "viewer_config.h"
 
 #define W 1280
 #define H 720
@@ -69,20 +70,28 @@ static void bbox_scene(const igb_scene *sc, float center[3], float *radius)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
-        fprintf(stderr, "usage: meshview <file.igb> [azimuth_degrees]\n");
+    alchemy_viewer_config config;
+    if (!alchemy_viewer_config_parse(argc, argv, ALCHEMY_VIEWER_ALLOW_TRANSFORMS, &config) ||
+        config.first_extra_argument + 1 < argc) {
+        fprintf(stderr,
+                "usage: meshview [--compose-transforms] [--screenshot PATH] "
+                "<file.igb> [azimuth_degrees]\n");
         return 1;
     }
-    const char *shot = getenv("X2VIEW_SHOT");
-    double azim = argc >= 3 ? atof(argv[2]) : 30.0;
+    double azim = config.first_extra_argument < argc ? atof(argv[config.first_extra_argument]) : 30.0;
 
     igb f;
-    if (igb_open(&f, argv[1]) != 0) {
+    if (igb_open(&f, config.input_path) != 0) {
         fprintf(stderr, "igb_open failed\n");
         return 1;
     }
     igb_scene sc;
-    if (igb_scene_load(&f, &sc) != 0 || sc.n_meshes == 0) {
+    const igb_scene_options scene_options = {
+        .compose_transforms = config.compose_transforms,
+        .diagnostic = NULL,
+        .diagnostic_context = NULL,
+    };
+    if (igb_scene_load(&f, &scene_options, &sc) != 0 || sc.n_meshes == 0) {
         fprintf(stderr, "no meshes found\n");
         igb_close(&f);
         return 1;
@@ -122,9 +131,9 @@ int main(int argc, char **argv)
     int n = igb_raster_frame(ras, view, W, H, pixels, zbuf);
     printf("triangles drawn=%d\n", n);
 
-    if (shot) {
-        igb_raster_save_bmp(ras, view, W, H, shot);
-        printf("wrote %s\n", shot);
+    if (config.screenshot_path) {
+        igb_raster_save_bmp(ras, view, W, H, config.screenshot_path);
+        printf("wrote %s\n", config.screenshot_path);
         free(pixels);
         free(zbuf);
         igb_raster_free(ras);

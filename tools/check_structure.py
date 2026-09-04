@@ -8,16 +8,16 @@ import pathlib
 import re
 import tempfile
 
-SOURCE_SUFFIXES = {".c", ".h", ".py"}
+SOURCE_SUFFIXES = {".c", ".cpp", ".h", ".hpp", ".py"}
 DEFAULT_LIMIT = 500
 LEGACY_LIMITS = {
     pathlib.Path("src/igb.c"): 800,
-    pathlib.Path("src/igb_mesh.c"): 566,
+    pathlib.Path("src/igb_mesh.c"): 538,
 }
 
 
 def source_paths(root: pathlib.Path):
-    for top in ("apps", "src", "tests", "tools"):
+    for top in ("apps", "include", "src", "tests", "tools"):
         directory = root / top
         if not directory.exists():
             continue
@@ -40,21 +40,40 @@ def violations(root: pathlib.Path) -> list[tuple[pathlib.Path, int, int]]:
 
 
 def input_ownership_violations(root: pathlib.Path) -> list[str]:
-    backend_path = root / "src/ig_sdl_controller.c"
-    input_paths = sorted((root / "src").glob("ig_*controller.[ch]"))
+    backend_path = root / "src/input/sdl_controller.cpp"
     found = []
 
     if backend_path.exists() and "SDL_PollEvent" in backend_path.read_text(encoding="utf-8"):
         found.append(
-            "src/ig_sdl_controller.c polls SDL's global event queue; "
+            "src/input/sdl_controller.cpp polls SDL's global event queue; "
             "the application must forward events"
         )
-    for path in input_paths:
+    return found
+
+
+def shipping_policy_violations(root: pathlib.Path) -> list[str]:
+    paths = [
+        *sorted((root / "src").glob("*.[ch]")),
+        *sorted((root / "src").glob("*.cpp")),
+        *sorted((root / "src/input").glob("*.cpp")),
+        *sorted((root / "include/alchemy").rglob("*.hpp")),
+    ]
+    found = []
+    for path in paths:
         text = path.read_text(encoding="utf-8")
-        if re.search(r"\b(?:x2|X2)_", text):
-            found.append(
-                f"{path.relative_to(root)} exposes title-specific X2 input vocabulary"
-            )
+        if re.search(r"\bgetenv\s*\(", text):
+            found.append(f"{path.relative_to(root)} reads process configuration")
+        if re.search(r"\b(?:fprintf|printf|puts|fputs)\s*\(|\bstderr\b|\bstd::cerr\b", text):
+            found.append(f"{path.relative_to(root)} writes diagnostics directly")
+        if re.search(r"\b(?:x2|X2|mua|MUA)[_A-Za-z0-9]*", text):
+            found.append(f"{path.relative_to(root)} contains title-specific vocabulary")
+        if re.search(r"(?:pc[/\\]xmen2|x360[/\\]mua)", text, re.IGNORECASE):
+            found.append(f"{path.relative_to(root)} depends on a consuming title")
+        is_platform_adapter = any(part in {"x86", "x360"} for part in path.parts)
+        if not is_platform_adapter and re.search(
+            r"\b(?:x86port|xenonport|x360port)\b", text, re.IGNORECASE
+        ):
+            found.append(f"{path.relative_to(root)} couples the neutral core to a CPU host")
     return found
 
 
@@ -81,22 +100,37 @@ def run_selftest() -> int:
         if observed != expected:
             print(f"structure self-test: expected {expected}, observed {observed}")
             return 1
-        (source / "ig_sdl_controller.c").write_text(
+        input_include = root / "include/alchemy/input"
+        input_source = root / "src/input"
+        input_include.mkdir(parents=True)
+        input_source.mkdir(parents=True, exist_ok=True)
+        (input_source / "sdl_controller.cpp").write_text(
             "void poll(void) { SDL_PollEvent(0); }\n", encoding="utf-8"
         )
-        (source / "ig_controller.h").write_text(
-            "void x2_controller_init(void);\n", encoding="utf-8"
+        (input_include / "controller.hpp").write_text(
+            '#include "../../../pc/xmen2/bad.h"\n'
+            "#include <x86port/context.h>\n"
+            "void x2_controller_init(void);\n"
+            "void bad(void) { getenv(\"BAD\"); fprintf(stderr, \"bad\"); }\n",
+            encoding="utf-8",
         )
         ownership = input_ownership_violations(root)
-        if len(ownership) != 2:
+        if len(ownership) != 1:
             print(
-                "structure self-test: expected event-pump and title-vocabulary "
-                f"violations, observed {ownership}"
+                "structure self-test: expected one event-pump violation, "
+                f"observed {ownership}"
+            )
+            return 1
+        shipping = shipping_policy_violations(root)
+        if len(shipping) != 5:
+            print(
+                "structure self-test: expected config, diagnostics, and title-policy "
+                f"violations, observed {shipping}"
             )
             return 1
     print(
         "structure self-test: accepted boundaries and detected oversized source, "
-        "backend event polling, and title-specific input vocabulary"
+        "backend event polling, title-specific input vocabulary, and diagnostics bypasses"
     )
     return 0
 
@@ -111,15 +145,18 @@ def main() -> int:
     root = pathlib.Path(__file__).resolve().parents[1]
     found = violations(root)
     ownership = input_ownership_violations(root)
-    if found or ownership:
+    shipping = shipping_policy_violations(root)
+    if found or ownership or shipping:
         for path, count, limit in found:
             print(f"structure: {path} has {count} lines; limit is {limit}")
         for message in ownership:
             print(f"structure: {message}")
+        for message in shipping:
+            print(f"structure: {message}")
         return 1
     print(
         "structure: new first-party files are at most 500 lines; "
-        "legacy limits did not grow; SDL input ownership is intact"
+        "legacy limits did not grow; typed input and shipping policy are intact"
     )
     return 0
 

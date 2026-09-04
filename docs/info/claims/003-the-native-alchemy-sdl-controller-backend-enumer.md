@@ -4,7 +4,7 @@ kind: claim
 status: holds
 created: 2026-08-24
 tags: input,sdl,controller
-depends: src/ig_sdl_controller.c#ig_sdl_controller_handle_event, src/ig_sdl_controller.c#ig_sdl_controller_update, src/ig_controller.c#ig_controller_manager_disconnect, tests/test_controller.c#test_sdl_event_and_snapshot_path
+depends: src/input/sdl_controller.cpp#SdlControllerBackend::handleEvent, src/input/sdl_controller.cpp#SdlControllerBackend::update, src/input/controller.cpp#ControllerManager::disconnect, tests/test_sdl_input.cpp#testSdlLifecycleAndSnapshot
 ---
 
 ## Claim
@@ -13,7 +13,14 @@ The native Alchemy SDL controller backend enumerates devices present at initiali
 
 ## Evidence
 
-2026-08-24 Clang RelWithDebInfo test_controller passed its real SDL3 virtual-device path: one device was enumerated before event forwarding, a second was attached and admitted after initialization, button/stick state was read through ig_sdl_controller_update, and removing the first left the second pointer/slot unchanged; the structure and structure_selftest gates independently accepted the shipping backend and rejected synthetic SDL_PollEvent/title-vocabulary violations.
+2026-09-04 Clang RelWithDebInfo `sdl_input` passed its real SDL3 virtual-device path: one device was
+enumerated before event forwarding, a second was attached and admitted after initialization,
+button/stick state was published through `SdlControllerBackend::update`, removing the first left the
+second in its stable slot, and RAII teardown emitted matching disconnects without shutting down a
+host-owned SDL subsystem. The platform-neutral `input` test independently passed externally supplied
+snapshots, lifecycle events, capacity refusal, and slot reuse. The structure self-test accepted the
+shipping sources and rejected synthetic SDL event polling, title/consumer coupling, process
+configuration, and direct diagnostics.
 
 ## What would falsify it
 

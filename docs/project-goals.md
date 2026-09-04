@@ -8,19 +8,22 @@ Marvel: Ultimate Alliance gameplay products both actually consume.
 Success conditions:
 
 - X-Men 2 resolves one pinned revision, links the relevant shared targets, and
-  executes their APIs through a title-local guest ABI adapter on the shipping
-  path.
+  executes their APIs through a title-local binding, using an optional
+  `alchemy/x86` adapter only where the shared contract needs x86port context.
 - The first candidate `alchemy_input` integration matches the retained X-Men 2
   DirectInput path for button bits, pressure, axes, callbacks, lifecycle, and
   stable device identity before that old concrete path is retired.
 - After every X-Men 2 project goal is verified, MUA links and exercises the
-  proven shared contracts through its separately recovered PPC/ARK ABI adapter.
+  proven shared contracts through a title-local binding and an optional
+  `alchemy/x360` adapter that consumes the Xbox 360 host's public interfaces.
 - Each extracted or extended service is verified against both title evidence
   before being called cross-title; offline tools and checkout presence alone do
   not satisfy consumer adoption.
 
-Constraints: title executables, guest addresses and object layouts, console
-hosts, native override registration, player policy, and other title-specific
+Constraints: the neutral core has zero x86port/Xbox 360 host dependency.
+Platform adapters are separately selectable and own only reusable Alchemy-to-
+host translation. Title executables, hashes, guest addresses and object
+layouts, native override registration, player policy, and other title-specific
 behavior remain in their consuming repositories. MUA work remains deferred
 until X-Men 2 is complete.
 
@@ -40,9 +43,11 @@ Success conditions:
 - Pure, proven C parsers remain small production seams; new stateful engine
   owners and adapters use focused C++20 RAII classes, explicit dependencies,
   narrow APIs, and composition.
-- Shipping library code receives typed immutable options and an injected
-  configurable Lucent logger. It contains no direct environment reads, stderr
-  writes, platform debug printing, or title-specific diagnostic switches.
+- Shipping library code receives typed immutable options and emits typed
+  diagnostic events through an injected observer. The application maps those
+  events once into its configurable Lucent logger. Library code contains no
+  direct environment reads, stderr writes, platform debug printing, or
+  title-specific diagnostic switches.
 - The normal verifier rejects forbidden dependency edges, direct diagnostics,
   out-of-owner configuration reads, title vocabulary in shared runtime code,
   and source-file growth beyond the project limits.

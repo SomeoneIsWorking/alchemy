@@ -14,8 +14,16 @@ updated: 2026-08-24
 
 ## Resolution
 
-The host now owns the only event pump and forwards events through `ig_sdl_controller_handle_event`. Startup enumeration and `ig_sdl_controller_update` provide complete snapshots, including controllers attached after initialization. Generic state uses `ig_*` names and stable device slots; SDL code is a separate `alchemy_input_sdl` target. The structure gate rejects both `SDL_PollEvent` in the backend and title-specific input vocabulary.
+The host owns the only event pump and forwards events through `SdlControllerBackend::handleEvent`.
+Startup enumeration and `update` provide complete snapshots, including controllers attached after
+initialization. Generic typed state and stable device slots live in the SDL-free `alchemy::input`
+target; SDL handles and lifetime live in the separate RAII `alchemy::input_sdl` target. The
+structure gate rejects backend `SDL_PollEvent`, title vocabulary, direct configuration/output, and
+consumer dependencies.
 
 ## Evidence
 
-The Clang RelWithDebInfo controller test passed startup enumeration, centrally forwarded late attach/removal, button/stick snapshot publication, and stable identity with SDL virtual devices. `structure` and `structure_selftest` passed positive and negative cases. See C003 and `docs/input.md`.
+The Clang RelWithDebInfo input tests pass platform-neutral external snapshot publication and SDL
+startup enumeration, centrally forwarded late attach/removal, button/stick snapshots, RAII cleanup,
+and stable identity with SDL virtual devices. `structure` and `structure_selftest` pass positive and
+negative cases. See C003 and `docs/input.md`.

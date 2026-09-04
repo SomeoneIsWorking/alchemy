@@ -1,45 +1,7 @@
 #include "igb_mesh.h"
 #include "igb_internal.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-int igb_obj_is(const igb *f, int idx, const char *type)
-{
-    if (idx < 0 || idx >= f->n_objects) {
-        return 0;
-    }
-    const igb_object *o = &f->objects[idx];
-    return o->type_name && strcmp(o->type_name, type) == 0;
-}
-
-int igb_obj_slot_i32(const igb *f, int idx, uint16_t slot)
-{
-    if (idx < 0 || idx >= f->n_objects) {
-        return -1;
-    }
-    const igb_fieldval *fv = igb_object_field(&f->objects[idx], slot);
-    if (!fv) {
-        return -1;
-    }
-    if (fv->blob && fv->blob_len >= 4) {
-        return (int)fv->blob[0] | ((int)fv->blob[1] << 8) | ((int)fv->blob[2] << 16) | ((int)fv->blob[3] << 24);
-    }
-    return fv->i32;
-}
-
-const uint8_t *igb_obj_slot_blob(const igb *f, int idx, uint16_t slot, int *out_len)
-{
-    if (idx < 0 || idx >= f->n_objects) {
-        return NULL;
-    }
-    const igb_fieldval *fv = igb_object_field(&f->objects[idx], slot);
-    if (!fv || !fv->blob) {
-        return NULL;
-    }
-    *out_len = (int)fv->blob_len;
-    return fv->blob;
-}
 
 /* Read the int array stored in a list object's data block. */
 static int list_children(const igb *f, int list_idx, int **out)
@@ -393,8 +355,17 @@ typedef struct {
     int *seen_geom;
     igb *f;
     igb_scene *scene;
+    const igb_scene_options *options;
     int cap;
 } walk_ctx;
+
+static void emit_diagnostic(const igb_scene_options *options,
+                            igb_scene_diagnostic diagnostic)
+{
+    if (options && options->diagnostic) {
+        options->diagnostic(options->diagnostic_context, &diagnostic);
+    }
+}
 
 static void scene_push_mesh(walk_ctx *w, igb_mesh *m)
 {
@@ -417,10 +388,11 @@ static void walk_node(walk_ctx *w, int node_idx, const float parent_mat[16], int
     float local[16];
     memcpy(local, parent_mat, sizeof(local));
 
-    /* Level tile geometry is authored at the origin and placed by igTransform
-     * ancestors; model files use transforms as animation rigs with the mesh
-     * already in final position.  Honor X2VIEW_TRANSFORMS=1 to compose them. */
-    if (getenv("X2VIEW_TRANSFORMS")) {
+    /* Level tile geometry can be authored at the origin and placed by
+     * igTransform ancestors, while some model files use transforms as
+     * animation rigs with the mesh already in final position. The caller
+     * selects which evidenced interpretation applies to its asset. */
+    if (w->options && w->options->compose_transforms) {
         if (strcmp(tn, "igTransform") == 0) {
             int blen = 0;
             const uint8_t *b = igb_obj_slot_blob(f, node_idx, 8, &blen);
@@ -452,10 +424,10 @@ static void walk_node(walk_ctx *w, int node_idx, const float parent_mat[16], int
         }
         igb_mesh m;
         if (decode_geometry(f, node_idx, local, my_tex, &m) == 0) {
-            if (getenv("X2VIEW_DEBUG")) {
-                fprintf(stderr, "walk geom=%d tex_src=%d img=%d nverts=%d\n", node_idx, my_tex,
-                        m.img_idx, m.nverts);
-            }
+            emit_diagnostic(
+                w->options,
+                (igb_scene_diagnostic){IGB_SCENE_DIAGNOSTIC_GEOMETRY_DECODED,
+                                       node_idx, tn, my_tex, m.img_idx, m.nverts});
             scene_push_mesh(w, &m);
         }
     }
@@ -468,13 +440,12 @@ static void walk_node(walk_ctx *w, int node_idx, const float parent_mat[16], int
     free(kids);
 }
 
-int igb_scene_load(const igb *f, igb_scene *out)
+int igb_scene_load(const igb *f, const igb_scene_options *options, igb_scene *out)
 {
     memset(out, 0, sizeof(*out));
-
-    if (getenv("X2VIEW_DEBUG")) {
-        fprintf(stderr, "igb_scene_load start\n");
-    }
+    emit_diagnostic(options,
+                    (igb_scene_diagnostic){IGB_SCENE_DIAGNOSTIC_LOAD_STARTED,
+                                           -1, NULL, -1, -1, 0});
 
     /* Build a parent map from every node list. */
     int n = f->n_objects;
@@ -505,6 +476,7 @@ int igb_scene_load(const igb *f, igb_scene *out)
     w.n = n;
     w.f = (igb *)f;
     w.scene = out;
+    w.options = options;
     w.seen_geom = calloc((size_t)n, sizeof(int));
     if (!w.seen_geom) {
         free(parent);
@@ -525,9 +497,9 @@ int igb_scene_load(const igb *f, igb_scene *out)
         if (f->objects[i].is_mem || !f->objects[i].type_name || parent[i] >= 0) {
             continue;
         }
-        if (getenv("X2VIEW_DEBUG")) {
-            fprintf(stderr, "walk from root %s[%d]\n", f->objects[i].type_name, i);
-        }
+        emit_diagnostic(options,
+                        (igb_scene_diagnostic){IGB_SCENE_DIAGNOSTIC_ROOT_DISCOVERED,
+                                               i, f->objects[i].type_name, -1, -1, 0});
         walk_node(&w, i, ident, -1);
         walked_any = 1;
     }
