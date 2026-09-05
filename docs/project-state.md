@@ -39,16 +39,17 @@ provided:
 | Host | State | Evidence or exact gap |
 | --- | --- | --- |
 | Linux x86-64 | supported | `.github/workflows/ci.yml` installs SDL2/SDL3, builds viewers and both input paths with Clang, and runs the complete CTest graph. |
-| macOS arm64 | partial | The existing desktop graph has hosted execution evidence; the corrected verifier explicitly selects AppleClang and the active SDK while Homebrew LLVM supplies quality tools. The new compiler path awaits its hosted run. |
-| Windows x86-64 | partial | The clang-cl/MSVC SDK job now builds the real libraries, dump tool, SDL2 viewers, and SDL3 input against checksum-pinned sources, then executes the synthetic CTest graph through `tools/verify.py`. Math uses the Windows CRT; standard file operations have a single CRT adapter. Native Windows runtime verification awaits the hosted job; Linux tests do not establish it. |
+| macOS arm64 | supported | Hosted run 33958777554 passed the actual libraries/viewers, synthetic runtime and quality checks using AppleClang and the active SDK; Homebrew LLVM supplies quality tools. |
+| Windows x86-64 | supported | Hosted run 33958777554 built the real libraries, dump tool, SDL2 viewers, and SDL3 input with clang-cl against checksum-pinned sources and passed the synthetic/quality graph. Math uses the Windows CRT; file operations use the shared CRT adapter. |
 | Android arm64-v8a | missing | Alchemy is intended for MUA's Android-capable shared engine path, but no NDK library build or consuming title package/device discriminator exists yet. Android package/device mechanics belong to `shared/android-port`; configure-only evidence is intentionally absent. |
 
 The canonical verifier rejects missing or skipped synthetic/quality tests.
 Enbaya decoding has an authored one-track initial/delta stream and malformed
 header checks; its real-asset regression is a separate `enbaya_real` test that
 returns 77 only for an absent asset and fails corrupt input. `igb_image_real`
-is the other permitted real-corpus skip. The Windows/macOS jobs must complete
-before their new toolchain paths count as executed evidence.
+is the other permitted real-corpus skip. [Hosted run 33958777554](https://github.com/SomeoneIsWorking/alchemy/actions/runs/33958777554)
+at `123566b1c08b1271169a82141e3dd36cee59b510` passed all three desktop jobs.
+This is shared-library and synthetic runtime evidence, not X-Men 2 or MUA gameplay.
 
 ## Capability details
 
