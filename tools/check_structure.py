@@ -11,7 +11,7 @@ import tempfile
 SOURCE_SUFFIXES = {".c", ".cpp", ".h", ".hpp", ".py"}
 DEFAULT_LIMIT = 500
 LEGACY_LIMITS = {
-    pathlib.Path("src/igb.c"): 800,
+    pathlib.Path("src/igb.c"): 775,
     pathlib.Path("src/igb_mesh.c"): 538,
 }
 

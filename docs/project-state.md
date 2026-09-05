@@ -33,15 +33,22 @@ S011 is the current focus.
 ## Host CI support
 
 The workflow uses complete-history checkouts and synthetic/asset-free tests;
-the real-disc corpus test remains explicitly skipped when no user corpus is
+the real-disc corpus tests remain explicitly skipped when no user corpus is
 provided:
 
 | Host | State | Evidence or exact gap |
 | --- | --- | --- |
 | Linux x86-64 | supported | `.github/workflows/ci.yml` installs SDL2/SDL3, builds viewers and both input paths with Clang, and runs the complete CTest graph. |
-| macOS arm64 | supported | `.github/workflows/ci.yml` installs SDL2/SDL3, builds viewers and both input paths with Apple Clang, and runs the complete CTest graph. |
-| Windows x86-64 | unsupported | The current top-level CMake graph unconditionally links the POSIX `m` library into the shared C and viewer targets and has no Windows replacement; a Windows job would fail at link time before exercising Alchemy. Portability must be fixed at that owner before adding a Windows job. |
+| macOS arm64 | partial | The existing desktop graph has hosted execution evidence; the corrected verifier explicitly selects AppleClang and the active SDK while Homebrew LLVM supplies quality tools. The new compiler path awaits its hosted run. |
+| Windows x86-64 | partial | The clang-cl/MSVC SDK job now builds the real libraries, dump tool, SDL2 viewers, and SDL3 input against checksum-pinned sources, then executes the synthetic CTest graph through `tools/verify.py`. Math uses the Windows CRT; standard file operations have a single CRT adapter. Native Windows runtime verification awaits the hosted job; Linux tests do not establish it. |
 | Android arm64-v8a | missing | Alchemy is intended for MUA's Android-capable shared engine path, but no NDK library build or consuming title package/device discriminator exists yet. Android package/device mechanics belong to `shared/android-port`; configure-only evidence is intentionally absent. |
+
+The canonical verifier rejects missing or skipped synthetic/quality tests.
+Enbaya decoding has an authored one-track initial/delta stream and malformed
+header checks; its real-asset regression is a separate `enbaya_real` test that
+returns 77 only for an absent asset and fails corrupt input. `igb_image_real`
+is the other permitted real-corpus skip. The Windows/macOS jobs must complete
+before their new toolchain paths count as executed evidence.
 
 ## Capability details
 
