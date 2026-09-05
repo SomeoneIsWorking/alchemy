@@ -19,6 +19,16 @@ TEST_FILES = (
     pathlib.Path("tests/test_input.cpp"),
     pathlib.Path("tests/test_sdl_input.cpp"),
 )
+C_FORMAT_FILES = (
+    "src/igb.c",
+    "src/igb_internal.c",
+    "src/igb_internal.h",
+    "src/igb_raster.c",
+    "tools/igb_dump.c",
+    "tests/test_enbaya.c",
+    "tests/test_file_io.c",
+    "tests/test_igb_image_real.c",
+)
 
 
 def cpp_paths(root: pathlib.Path) -> list[pathlib.Path]:
@@ -43,10 +53,8 @@ def run_format(root: pathlib.Path) -> int:
     executable = require_tool("clang-format")
     if executable is None:
         return 77
-    paths = cpp_paths(root)
-    completed = subprocess.run(
-        [executable, "--dry-run", "--Werror", *map(str, paths)], check=False
-    )
+    paths = cpp_paths(root) + [root / path for path in C_FORMAT_FILES]
+    completed = subprocess.run([executable, "--dry-run", "--Werror", *map(str, paths)], check=False)
     if completed.returncode == 0:
         print(f"C++ format: {len(paths)} input runtime/test files passed")
     return completed.returncode

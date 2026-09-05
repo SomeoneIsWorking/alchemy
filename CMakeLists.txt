@@ -16,7 +16,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+option(ALCHEMY_FETCH_SDL "Build checksum-pinned SDL dependencies" OFF)
+option(ALCHEMY_REQUIRE_SDL "Require both SDL library boundaries" OFF)
+if(ALCHEMY_FETCH_SDL)
+    include(cmake/SdlDependencies.cmake)
+endif()
 
 find_package(PkgConfig QUIET)
 
@@ -26,8 +30,10 @@ find_package(PkgConfig QUIET)
 # links. SDL2 backs the asset viewers, which are SEPARATE BINARIES -- keeping
 # them on SDL2 is what stops two SDLs ever being linked into one process. Do
 # not "simplify" these into one: the split is the safety property.
-find_package(SDL3 QUIET)
-if(NOT SDL3_FOUND AND PkgConfig_FOUND)
+if(NOT TARGET SDL3::SDL3)
+    find_package(SDL3 QUIET)
+endif()
+if(NOT TARGET SDL3::SDL3 AND NOT SDL3_FOUND AND PkgConfig_FOUND)
     pkg_check_modules(SDL3 QUIET IMPORTED_TARGET sdl3)
 endif()
 if(TARGET SDL3::SDL3)
@@ -36,8 +42,10 @@ elseif(SDL3_FOUND)
     set(ALCHEMY_SDL3 PkgConfig::SDL3)
 endif()
 
-find_package(SDL2 QUIET)          # asset viewers only -- see above
-if(NOT SDL2_FOUND AND PkgConfig_FOUND)
+if(NOT TARGET SDL2::SDL2)
+    find_package(SDL2 QUIET)      # asset viewers only -- see above
+endif()
+if(NOT TARGET SDL2::SDL2 AND NOT SDL2_FOUND AND PkgConfig_FOUND)
     pkg_check_modules(SDL2 QUIET IMPORTED_TARGET sdl2)
 endif()
 if(TARGET SDL2::SDL2)
@@ -58,7 +66,9 @@ add_library(alchemy
     src/igb_anim.c
 )
 target_include_directories(alchemy PUBLIC src)
-target_link_libraries(alchemy PUBLIC m)
+if(NOT MSVC)
+    target_link_libraries(alchemy PUBLIC m)
+endif()
 
 # The engine's controller snapshot is platform-neutral. The SDL adapter is a
 # peer target because it exposes SDL at its host-facing event boundary; tools
@@ -95,7 +105,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(ALCHEMY_SDL2)
         foreach(view x2view meshview flyview)
             add_executable(${view} apps/${view}.c)
-            target_link_libraries(${view} PRIVATE alchemy alchemy_viewer_config m ${ALCHEMY_SDL2})
+            target_link_libraries(${view} PRIVATE alchemy alchemy_viewer_config ${ALCHEMY_SDL2})
+            if(TARGET SDL2::SDL2main)
+                target_link_libraries(${view} PRIVATE SDL2::SDL2main)
+            endif()
         endforeach()
     else()
         message(STATUS "alchemy: SDL2 not found -- the viewers are NOT built. "
@@ -104,8 +117,15 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     add_executable(test_enbaya tests/test_enbaya.c)
     target_link_libraries(test_enbaya PRIVATE alchemy)
-    target_compile_options(test_enbaya PRIVATE -UNDEBUG)
     add_test(NAME enbaya COMMAND test_enbaya)
+    add_executable(test_file_io tests/test_file_io.c)
+    target_link_libraries(test_file_io PRIVATE alchemy)
+    add_test(NAME file_io COMMAND test_file_io
+        ${CMAKE_CURRENT_BINARY_DIR}/test-file-io.bin
+        ${CMAKE_CURRENT_BINARY_DIR}/absent-input/file.bin)
+    add_test(NAME enbaya_real COMMAND test_enbaya --real)
+    set_tests_properties(enbaya_real PROPERTIES SKIP_RETURN_CODE 77
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
     add_executable(test_igb_image tests/test_igb_image.c)
     target_link_libraries(test_igb_image PRIVATE alchemy)
@@ -120,23 +140,19 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     add_executable(test_scene_options tests/test_scene_options.c)
     target_link_libraries(test_scene_options PRIVATE alchemy)
-    target_compile_options(test_scene_options PRIVATE -UNDEBUG)
     add_test(NAME scene_options COMMAND test_scene_options)
 
     add_executable(test_viewer_config tests/test_viewer_config.c)
     target_link_libraries(test_viewer_config PRIVATE alchemy_viewer_config)
-    target_compile_options(test_viewer_config PRIVATE -UNDEBUG)
     add_test(NAME viewer_config COMMAND test_viewer_config)
 
     add_executable(test_input tests/test_input.cpp)
     target_link_libraries(test_input PRIVATE alchemy_input)
-    target_compile_options(test_input PRIVATE -UNDEBUG)
     add_test(NAME input COMMAND test_input)
 
     if(ALCHEMY_SDL3)
         add_executable(test_sdl_input tests/test_sdl_input.cpp)
         target_link_libraries(test_sdl_input PRIVATE alchemy_input_sdl)
-        target_compile_options(test_sdl_input PRIVATE -UNDEBUG)
         add_test(NAME sdl_input COMMAND test_sdl_input)
     endif()
 
@@ -168,4 +184,29 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/cpp_quality.py tidy
                      --build-dir ${CMAKE_BINARY_DIR})
     set_tests_properties(cpp_format cpp_tidy PROPERTIES SKIP_RETURN_CODE 77)
+
+    add_test(NAME verification_policy
+             COMMAND ${Python3_EXECUTABLE} -m unittest discover
+                     -s ${CMAKE_CURRENT_SOURCE_DIR}/tests -p test_verification.py)
 endif()
+
+if(ALCHEMY_REQUIRE_SDL AND (NOT ALCHEMY_SDL2 OR NOT ALCHEMY_SDL3))
+    message(FATAL_ERROR "Alchemy verification requires both SDL2 viewers and SDL3 input")
+endif()
+
+# Apply first-party policy only in this directory, without changing dependencies.
+get_property(ALCHEMY_TARGETS DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(target IN LISTS ALCHEMY_TARGETS)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /WX)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    if(target MATCHES "^test_")
+        if(MSVC)
+            target_compile_options(${target} PRIVATE /UNDEBUG)
+        else()
+            target_compile_options(${target} PRIVATE -UNDEBUG)
+        endif()
+    endif()
+endforeach()

@@ -57,10 +57,23 @@ port unchanged.
 ## Build
 
 ```sh
-CC=clang CXX=clang++ cmake -S . -B build -G Ninja
-cmake --build build
-ctest --test-dir build --output-on-failure
+uv run --frozen python tools/verify.py
 ```
+
+The verifier requires CMake, Ninja, Clang/clang-cl (AppleClang on macOS),
+clang-format, clang-tidy, and both SDL development packages. Python/Ruff are
+locked by `pyproject.toml` and `uv.lock`. Use `--fetch-sdl` to build the
+checksum-pinned SDL2/SDL3 sources instead of using system packages. Windows
+uses a Visual Studio x64 developer environment with clang-cl and `--fetch-sdl`;
+the workflow prepares that environment and executes the same verifier. macOS
+selects `/usr/bin/clang` and `/usr/bin/clang++` even when Homebrew LLVM provides
+the formatting/lint tools.
+
+All three desktop jobs compile the actual libraries, viewers and dump tool and
+execute synthetic parser/animation/input/SDL tests. Missing required tests or
+skipped quality checks fail verification. Only explicitly named real-corpus
+tests may skip without game files. Android runtime/package evidence is still
+missing; see the host matrix in `docs/project-state.md`.
 
 Standalone it builds the viewers and tools. Added as a subdirectory, it exposes
 the `alchemy` and `alchemy::input` libraries plus `alchemy::input_sdl` when SDL3
