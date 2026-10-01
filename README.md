@@ -73,7 +73,7 @@ All three desktop jobs compile the actual libraries, viewers and dump tool and
 execute synthetic parser/animation/input/SDL tests. Missing required tests or
 skipped quality checks fail verification. Only explicitly named real-corpus
 tests may skip without game files. Android runtime/package evidence is still
-missing; see the host matrix in `docs/project-state.md`.
+missing.
 
 Standalone it builds the viewers and tools. Added as a subdirectory, it exposes
 the `alchemy` and `alchemy::input` libraries plus `alchemy::input_sdl` when SDL3
@@ -113,9 +113,9 @@ current capability coverage is recorded in
 ## Platform coverage
 
 Container byte order is a property of the asset, not the CPU that consumes it.
-All supplied MUA assets are little-endian IGBs: 311 PS2 files use version 6 and
-the 324 Xbox 360 base files plus 261 Gold/title-update files use version 8. The
-current reader opens that complete corpus.
+Every supplied MUA asset is a little-endian IGB: PS2 files use container
+version 6, and the Xbox 360 base, Gold, and title-update files use version 8.
+The current reader opens that complete corpus.
 
 The Xbox 360 assets use the existing DXT image path. MUA's PS2 assets add
 RGBA5551 and indexed CLUT8 payloads; both are decoded by `igb_image.c` and

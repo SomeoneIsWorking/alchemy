@@ -50,7 +50,7 @@ title-neutral model.
 
 ## Consumer and dependency discipline
 
-- A checkout, tool import, or offline corpus run is not gameplay consumption.
+- A checkout or a tool import is not gameplay consumption.
   A consumer must resolve one pinned revision, link a shared target, execute its
   API on the shipping path, and pass title-specific conformance evidence.
 - Each consumer has one dependency resolver and one immutable revision. Do not
@@ -70,12 +70,9 @@ title-neutral model.
 - A parser opening a container proves structure only. Texture decode,
   animation semantics, mesh topology, and rendering each need their own
   positive and negative checks.
-- Real-disc corpus checks accept explicit paths or environment variables and
-  keep all extracted data under ignored `scratch/`. Tests never contain or
-  download copyrighted assets.
-- Every corpus report prints how many archives, embedded entries, objects, and
-  payloads it examined, plus every unsupported case. Zero matches is a refusal,
-  not success.
+- Real-corpus tests accept explicit paths or environment variables and keep all
+  extracted data under ignored `scratch/`. Tests never contain or download
+  copyrighted assets.
 - `x2_*`, `X2_*`, and `X2VIEW_*` names are extraction residue, not an ownership
   boundary. New public APIs use `alchemy_` or the engine's factual `ig*`
   vocabulary; migrate consumers atomically when retiring an old name.
@@ -103,4 +100,7 @@ rejects `getenv`, direct stderr/debug output, title vocabulary, forbidden
 consumer dependencies, and source growth beyond the recorded limits.
 
 Agent verification uses Clang in a top-level `build/` child. `scratch/` is for
-disposable run evidence, never compiler output.
+disposable run evidence, never compiler output. The gate is
+`uv run --frozen python tools/verify.py`; it builds the real owners and runs
+CTest. Do not add tests of the gate, the structure check, or the other
+tooling — those own their own contract.
