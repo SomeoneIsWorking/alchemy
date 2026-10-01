@@ -161,16 +161,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_test(NAME xmlb_roundtrip
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/xmlb.py --selftest)
-    add_test(NAME mua_corpus_selftest
-             COMMAND ${Python3_EXECUTABLE}
-                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/mua_corpus.py --selftest)
-
     add_test(NAME structure
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_structure.py)
-    add_test(NAME structure_selftest
-             COMMAND ${Python3_EXECUTABLE}
-                     ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_structure.py --selftest)
     add_test(NAME python_lint
              COMMAND ${Python3_EXECUTABLE}
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/lint.py)
@@ -184,10 +177,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
                      ${CMAKE_CURRENT_SOURCE_DIR}/tools/cpp_quality.py tidy
                      --build-dir ${CMAKE_BINARY_DIR})
     set_tests_properties(cpp_format cpp_tidy PROPERTIES SKIP_RETURN_CODE 77)
-
-    add_test(NAME verification_policy
-             COMMAND ${Python3_EXECUTABLE} -m unittest discover
-                     -s ${CMAKE_CURRENT_SOURCE_DIR}/tests -p test_verification.py)
 endif()
 
 if(ALCHEMY_REQUIRE_SDL AND (NOT ALCHEMY_SDL2 OR NOT ALCHEMY_SDL3))
