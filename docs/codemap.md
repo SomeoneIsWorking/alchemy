@@ -24,38 +24,18 @@ them. Capability status and remaining gaps belong in `docs/project-state.md`.
 | Runtime diagnostics | Emit typed library events to an injected observer for one application-owned Lucent adapter | `src/igb_mesh.h`, `include/alchemy/input/sdl_controller.hpp` | `igb_scene_diagnostic_fn`, `SdlDiagnosticObserver` | `docs/migration.md` |
 | XMLB | Decode, edit, and serialize Raven binary XML | `tools/xmlb.py` | `parse`, `serialise` | — |
 | FB packages | Decode ordered Raven package contents | `tools/raven-formats/src/raven_formats/fb.py`, `tools/alchemy_archives.py` | tool/library entry points | — |
-| MUA corpus inspection | Traverse user-owned PS2/Xbox 360 archives through shared format owners | `tools/mua_corpus.py` | `inspect_archives` | `docs/mua-corpus.md` |
 | Raven audio containers | Inspect ZSND containers offline | `tools/raven-formats/src/raven_formats/zsnd.py` | module API | — |
 | Vendored Python IGB reader | Support Python-only inspection consumers with recorded provenance | `vendor/igblib/` | `igblib` package | `vendor/igblib/README.md` |
 | ARK recovery | Recover class graphs and vtables from title binaries | `tools/ark_classes.py`, `tools/ark_vtables.py` | each tool's `main` | `docs/ark.md` |
 | Asset viewers | Compose SDL2-only standalone inspection applications | `apps/` | each application's `main` | — |
 | Viewer configuration | Parse the shared screenshot and transform CLI options once for standalone viewers | `apps/viewer_config.c`, `apps/viewer_config.h` | `alchemy_viewer_config_parse` | — |
-| Verification | Select native toolchains and build actual library/viewer owners; require executed synthetic/quality checks and separate real-corpus evidence | `tests/`, `tools/verify.py`, `tools/verification.py`, `tools/check_structure.py`, `tools/cpp_quality.py`, `tools/mua_corpus.py` | `uv run --frozen python tools/verify.py` and CTest | — |
+| Verification | Select native toolchains and build actual library/viewer owners; require executed synthetic and quality checks | `tests/`, `tools/verify.py`, `tools/verification.py`, `tools/check_structure.py`, `tools/cpp_quality.py` | `uv run --frozen python tools/verify.py` and CTest | — |
 | Standalone SDL provisioning | Fetch immutable checksum-pinned SDL2/SDL3 sources when requested, keeping the two library processes separate | `cmake/SdlDependencies.cmake` | `ALCHEMY_FETCH_SDL` | — |
 | X-Men 2 guest ABI adapter | Translate retained PC `igControllerManager` and later engine seams to shared contracts | consumer-owned target: `pc/xmen2` | title override/adapter registration | `docs/migration.md` |
 | MUA guest ABI adapter | Translate retained PPC/ARK engine seams to shared contracts after deferral lifts | consumer-owned target: `x360/mua` | title override/adapter registration | `docs/migration.md` |
 | x86 platform adapter | Translate proven Alchemy contracts through x86port public execution/context interfaces without title identity or addresses | target: optional `alchemy/x86` target and source subtree | narrow adapter API selected by an x86 consumer | `docs/migration.md` |
 | Xbox 360 platform adapter | Translate proven Alchemy contracts through Xbox 360 host public execution/context interfaces without title identity or addresses, after X-Men 2 proves the contract | target: optional `alchemy/x360` target and source subtree | narrow adapter API selected by an Xbox 360 consumer | `docs/migration.md` |
 | Dependency resolution | Expose stable CMake targets; each consumer owns one immutable repo pin/resolver | `CMakeLists.txt`; consumer bootstrap/config | `alchemy`, `alchemy::input`, `alchemy::input_sdl` targets | `docs/migration.md` |
-
-## Source tree
-
-```text
-./  —  8,189 lines, 51 files
-├─ apps/  611 lines  5 files  [.c .h]
-├─ include/  231 lines  2 files  [.hpp]
-│  ├─ alchemy/  231 lines  2 files
-│  │  ├─ input/  231 lines  2 files
-├─ src/  3,000 lines  15 files  [.c .h .cpp]
-│  ├─ input/  500 lines  2 files
-├─ tests/  794 lines  9 files  [.c .cpp .py]
-├─ tools/  3,553 lines  20 files  [.py .c]
-│  ├─ raven-formats/  988 lines  7 files
-│  │  ├─ src/  952 lines  6 files
-│  │  ├─ tests/  36 lines  1 file
-
-TOTAL: 8,189 lines across 51 files in 1 root
-```
 
 ## Where is X?
 
@@ -68,7 +48,6 @@ TOTAL: 8,189 lines across 51 files in 1 root
 - Translate centrally forwarded SDL input and hotplug: `SdlControllerBackend` in `include/alchemy/input/sdl_controller.hpp`
 - Inspect XMLB: `tools/xmlb.py`
 - Inspect FB/ZSND: `tools/raven-formats/src/raven_formats/`
-- Verify the real MUA discs and Gold content: `tools/mua_corpus.py`
 - Enforce source ownership limits: `tools/check_structure.py`
 - Recover ARK metadata: `tools/ark_classes.py`, `tools/ark_vtables.py`
 - Configure an asset viewer: `alchemy_viewer_config_parse` in `apps/viewer_config.c`
