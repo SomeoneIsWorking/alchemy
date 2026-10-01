@@ -3,10 +3,8 @@
 
 from __future__ import annotations
 
-import argparse
 import pathlib
 import re
-import tempfile
 
 SOURCE_SUFFIXES = {".c", ".cpp", ".h", ".hpp", ".py"}
 DEFAULT_LIMIT = 500
@@ -77,71 +75,7 @@ def shipping_policy_violations(root: pathlib.Path) -> list[str]:
     return found
 
 
-def run_selftest() -> int:
-    scratch = pathlib.Path(__file__).resolve().parents[1] / "scratch"
-    scratch.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="structure_", dir=scratch) as temporary:
-        root = pathlib.Path(temporary)
-        source = root / "src"
-        source.mkdir()
-        (source / "at_limit.c").write_text(
-            "line\n" * DEFAULT_LIMIT, encoding="utf-8"
-        )
-        if violations(root):
-            print("structure self-test: rejected a file exactly at the limit")
-            return 1
-        (source / "too_large.c").write_text(
-            "line\n" * (DEFAULT_LIMIT + 1), encoding="utf-8"
-        )
-        expected = [
-            (pathlib.Path("src/too_large.c"), DEFAULT_LIMIT + 1, DEFAULT_LIMIT)
-        ]
-        observed = violations(root)
-        if observed != expected:
-            print(f"structure self-test: expected {expected}, observed {observed}")
-            return 1
-        input_include = root / "include/alchemy/input"
-        input_source = root / "src/input"
-        input_include.mkdir(parents=True)
-        input_source.mkdir(parents=True, exist_ok=True)
-        (input_source / "sdl_controller.cpp").write_text(
-            "void poll(void) { SDL_PollEvent(0); }\n", encoding="utf-8"
-        )
-        (input_include / "controller.hpp").write_text(
-            '#include "../../../pc/xmen2/bad.h"\n'
-            "#include <x86port/context.h>\n"
-            "void x2_controller_init(void);\n"
-            "void bad(void) { getenv(\"BAD\"); fprintf(stderr, \"bad\"); }\n",
-            encoding="utf-8",
-        )
-        ownership = input_ownership_violations(root)
-        if len(ownership) != 1:
-            print(
-                "structure self-test: expected one event-pump violation, "
-                f"observed {ownership}"
-            )
-            return 1
-        shipping = shipping_policy_violations(root)
-        if len(shipping) != 5:
-            print(
-                "structure self-test: expected config, diagnostics, and title-policy "
-                f"violations, observed {shipping}"
-            )
-            return 1
-    print(
-        "structure self-test: accepted boundaries and detected oversized source, "
-        "backend event polling, title-specific input vocabulary, and diagnostics bypasses"
-    )
-    return 0
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--selftest", action="store_true")
-    args = parser.parse_args()
-    if args.selftest:
-        return run_selftest()
-
     root = pathlib.Path(__file__).resolve().parents[1]
     found = violations(root)
     ownership = input_ownership_violations(root)

@@ -60,7 +60,7 @@ def extract(igb_path):
     # It was a dict, and an IGB holding several igImages of the same size had
     # them overwrite each other -- only the last survived. Two fonts that
     # differ in 82% of their bytes then decoded to "byte-identical" atlases and
-    # a feature was written off on the strength of it (instrument I045). Every
+    # a feature was written off on the strength of it. Every
     # image is emitted now, with its index, and the count is printed so that
     # "one image" is a fact rather than an assumption.
     out = []

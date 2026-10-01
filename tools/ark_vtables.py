@@ -4,14 +4,13 @@
     tools/ark_vtables.py <module>.json <module>.pe <module>.ark.json
                          [--class NAME] [--json out.json]
 
-docs/RE/ark.md open question 4, and C009's stated falsifier, are the same thing:
-handing libIGCore a vtable POINTER is not enough, because callers dispatch by
+Handing libIGCore a vtable POINTER is not enough, because callers dispatch by
 SLOT INDEX, and that layout had never been read out of the binary. This reads it.
 
 ## Where the address comes from
 
 Every concrete class's `retrieveVTablePointer` builds a throwaway instance and
-stamps its own vtable in before reading it back (C009). That store is a literal:
+stamps its own vtable in before reading it back. That store is a literal:
 
     MOV dword ptr [ESP + 0xc],0x100dd0a0     <-- the vtable of igDx8VisualContext
 

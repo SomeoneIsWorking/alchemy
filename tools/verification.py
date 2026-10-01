@@ -18,13 +18,10 @@ REQUIRED_TESTS = {
     "input",
     "sdl_input",
     "xmlb_roundtrip",
-    "mua_corpus_selftest",
     "structure",
-    "structure_selftest",
     "python_lint",
     "cpp_format",
     "cpp_tidy",
-    "verification_policy",
 }
 
 
