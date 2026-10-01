@@ -93,7 +93,7 @@ static void verify_pair(const char *ps2_path, const char *x360_path, int expecte
   igb_close(&ps2_file);
 }
 
-int main(int argc, char **argv) {
+int main(void) {
 #ifdef _MSC_VER
   char *ps2_environment = NULL;
   char *x360_environment = NULL;
@@ -132,11 +132,7 @@ int main(int argc, char **argv) {
   }
   CHECK(present == 4);
 
-  uint64_t font_sad = 165402;
-  if (argc == 2 && strcmp(argv[1], "--falsify") == 0) {
-    ++font_sad;
-  }
-  verify_pair(ps2_font, x360_font, ALCHEMY_IGB_PFMT_CLUT_INDEX8, 40656, font_sad);
+  verify_pair(ps2_font, x360_font, ALCHEMY_IGB_PFMT_CLUT_INDEX8, 40656, 165402);
   verify_pair(ps2_default, x360_default, ALCHEMY_IGB_PFMT_RGBA5551, 0, 5760);
   puts("test_igb_image_real: OK (2/2 assets, 65792/65792 pixels compared)");
   return 0;
