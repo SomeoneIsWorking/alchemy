@@ -1,160 +1,24 @@
 # Project state
 
-## Comparison baseline
+Baseline: every Alchemy-engine game port carrying its own container decoders, archive tools,
+asset viewers, and controller glue. This repository supplies the shared libraries and tools; no
+gameplay product links them yet.
 
-The baseline is every Alchemy-engine game port carrying its own container decoders, archive tools,
-asset viewers, controller glue, and eventually title-local native engine replacements. This
-repository already provides measured shared libraries and tools, but no gameplay product currently
-links and exercises them as its engine boundary.
+Current focus: S011 — X-Men 2 links and executes a conformed shared Alchemy contract.
 
-## Current focus
-
-S011 is the current focus.
-
-## Capability inventory
-
-| ID | Capability or outcome | State | Factual dependency | Goals |
-| --- | --- | --- | --- | --- |
-| S001 | IGB containers and the measured Xbox 360 and PS2 corpora can be opened and inspected | verified | — | G001 |
-| S002 | Mesh, texture, raster, and animation payloads decode into native semantic data | partial | S001 | G001 |
-| S003 | XMLB, FB/WAD, ARK class, font, and conversation tooling exposes reusable engine formats | partial | — | G001 |
-| S004 | Platform-neutral controller snapshots and an SDL3 backend support stable native devices | partial | — | G001 |
-| S005 | Existing standalone viewers and dump tools inspect measured assets without depending on a game port | verified | S001 | G001 |
-| S006 | IGB meshes decode into native vertex, index, material, and skinning data | partial | S001 | G001 |
-| S007 | Xbox 360 and PS2 texture/raster payloads decode into native images | partial | S001 | G001 |
-| S008 | Enbaya-compressed animation payloads decode into native animation data | partial | S001 | G001 |
-| S009 | XMLB assets can be decoded, edited, and round-tripped by shared tooling | partial | — | G001 |
-| S010 | FB/WAD, ARK class/vtable, font, and conversation formats have reusable inspection tools | partial | — | G001 |
-| S011 | X-Men 2 gameplay links and executes a conformed shared Alchemy contract | missing | S004 | G001 |
-| S012 | MUA gameplay links and executes proven shared Alchemy contracts | missing | S011 | G001 |
-| S013 | Shipping library configuration, diagnostics, language, and dependency boundaries are mechanically enforced | verified | — | G002 |
-| S014 | Each consumer resolves one immutable Alchemy revision for tools and runtime targets | partial | — | G001, G002 |
-
-## Host CI support
-
-The workflow uses complete-history checkouts and synthetic/asset-free tests;
-the real-disc corpus tests remain explicitly skipped when no user corpus is
-provided:
-
-| Host | State | Evidence or exact gap |
-| --- | --- | --- |
-| Linux x86-64 | supported | `.github/workflows/ci.yml` installs SDL2/SDL3, builds viewers and both input paths with Clang, and runs the complete CTest graph. |
-| macOS arm64 | supported | Hosted run 33958777554 passed the actual libraries/viewers, synthetic runtime and quality checks using AppleClang and the active SDK; Homebrew LLVM supplies quality tools. |
-| Windows x86-64 | supported | Hosted run 33958777554 built the real libraries, dump tool, SDL2 viewers, and SDL3 input with clang-cl against checksum-pinned sources and passed the synthetic/quality graph. Math uses the Windows CRT; file operations use the shared CRT adapter. |
-| Android arm64-v8a | missing | Alchemy is intended for MUA's Android-capable shared engine path, but no NDK library build or consuming title package/device discriminator exists yet. Android package/device mechanics belong to `shared/android-port`; configure-only evidence is intentionally absent. |
-
-The canonical verifier rejects missing or skipped synthetic/quality tests.
-Enbaya decoding has an authored one-track initial/delta stream and malformed
-header checks; its real-asset regression is a separate `enbaya_real` test that
-returns 77 only for an absent asset and fails corrupt input. `igb_image_real`
-is the other permitted real-corpus skip. [Hosted run 33958777554](https://github.com/SomeoneIsWorking/alchemy/actions/runs/33958777554)
-at `123566b1c08b1271169a82141e3dd36cee59b510` passed all three desktop jobs.
-This is shared-library and synthetic runtime evidence, not X-Men 2 or MUA gameplay.
-
-## Capability details
-
-### S001 — Container coverage
-
-Evidence: corpus checks open the measured MUA PS2, Xbox 360 base, Gold, and title-update IGB sets and
-report exact archive, object, and unsupported-case counts.
-
-### S002 — Typed asset semantics
-
-IGB owners decode meshes, DXT and PS2 image formats, raster data, and Enbaya-compressed animation.
-
-Gap: general big-endian structure and semantic payloads, plus complete cross-title render validation,
-remain unsupported until grounded by a real corpus.
-
-### S003 — Engine format tooling
-
-The repository contains production XMLB, archive, ARK graph/vtable, font, WAD, and conversation tools.
-
-Gap: format and title coverage remains evidence-driven and incomplete beyond the measured consumers.
-
-### S004 — Native input
-
-The C++20 `ControllerManager` owns typed state, stable slots and value-owning lifecycle events. The
-separate RAII SDL backend handles startup devices, forwarded hot-plug events, complete snapshots,
-handles, rumble, immutable thresholds, and typed diagnostic delivery. A non-SDL producer can publish
-external snapshots through the same manager target.
-
-Gap: X-Men 2 guest substitution/A-B parity and Marvel Ultimate Alliance ARK/vtable ABI integration
-remain unverified.
-
-### S005 — Asset viewers
-
-Evidence: the existing XML2-focused `x2view`, `meshview`, `flyview`, and `igb_dump` build as standalone
-consumers of the shared libraries and keep SDL2 viewer policy separate from SDL3 shipping input. This
-does not claim generalized MUA or cross-title viewer coverage.
-
-### S006 — Mesh decoding
-
-Mesh owners expose measured geometry, material, and skinning semantics.
-
-Gap: general big-endian structures and complete cross-title render validation remain incomplete.
-
-### S007 — Texture and raster decoding
-
-Texture owners decode measured DXT and PS2 image/raster formats.
-
-Gap: format and cross-title coverage remains limited to grounded corpora.
-
-### S008 — Animation decoding
-
-The shared Enbaya owner decodes measured compressed animation payloads.
-
-Gap: complete animation semantics across Alchemy titles remain unverified.
-
-### S009 — XMLB round-trip
-
-Shared XMLB tooling and round-trip tests cover the measured format surface.
-
-Gap: unmeasured format variants and title coverage remain incomplete.
-
-### S010 — Archive and auxiliary formats
-
-The repository contains production FB/WAD, ARK graph/vtable, font, and conversation tools.
-
-Gap: each tool's format and title coverage remains evidence-driven and incomplete.
-
-### S011 — X-Men 2 gameplay consumption
-
-Missing capability: X-Men 2 pins this repository and uses shared XMLB/ARK tooling, but its CMake
-authority explicitly links none of the `alchemy`, `alchemy_input`, or `alchemy_input_sdl` targets and
-its product source calls no shared runtime API.
-
-Gap: link the first narrow contract through the shipping build and a title-local guest ABI adapter.
-The `alchemy::input` target is the first candidate; retain DirectInput as the oracle until button
-bits, pressure, axes, callbacks, lifecycle, and stable identity pass A/B conformance.
-The neutral target must remain host-independent; any reusable x86port context translation belongs
-in a separately selected `alchemy/x86` adapter while exact addresses and registration stay in X-Men 2.
-
-### S012 — MUA gameplay consumption
-
-Missing capability: MUA has no Alchemy dependency resolver, build edge, source include, tool import,
-or runtime call path. Its current documentation describes only the intended ownership direction.
-
-Gap: MUA remains deferred until every X-Men 2 project goal is verified. After that deferral lifts,
-recover the MUA PPC/ARK guest ABI and adapt it to the contracts X-Men 2 has already proven; do not
-create an MUA-local engine implementation. Reusable host translation may live in a separately
-selected `alchemy/x360` adapter; exact MUA identity and bindings remain consumer-owned.
-
-### S013 — Runtime API and quality enforcement
-
-Evidence: `igb_scene_load` accepts immutable typed options and emits typed diagnostic events through
-an injected observer; no shipping library source reads process configuration or writes diagnostics.
-The standalone viewers parse their shared screenshot/transform CLI through one
-`alchemy_viewer_config_parse` owner and contain no environment reads.
-The C++20 input owner uses narrow typed value objects and RAII SDL lifetime. The structure self-test
-proves the normal gate rejects environment reads, direct output, title vocabulary, consumer edges,
-backend event polling, and source growth. `cpp_format` and `cpp_tidy` cover the C++ runtime and tests.
-The pure C parsers remain C, and object lookup was extracted into `src/igb_object.c` instead of
-growing the legacy mesh unit.
-
-### S014 — Consumer dependency authority
-
-X-Men 2's bootstrap pins one immutable revision of this repository and uses it for offline tooling.
-
-Gap: that pin does not feed any runtime CMake target, and MUA has no resolver or pin. Each consumer
-needs one authoritative immutable revision used by both tooling and runtime integration, with no
-vendored or sibling-checkout fallback.
+| ID | Capability | State | Evidence or gap |
+| --- | --- | --- | --- |
+| S001 | Open and inspect IGB containers | verified | `src/igb.c` parses every supplied MUA PS2 (v6) and Xbox 360 (v8) file; little-endian, no byte swapping |
+| S002 | Decode mesh, texture, raster, and animation payloads into native data | partial | Measured DXT, PS2 RGBA5551 and CLUT_INDEX8, and Enbaya decode; big-endian structures and cross-title render validation unproven |
+| S003 | Reusable XMLB, FB/WAD, ARK, font, and conversation tooling | partial | `tools/xmlb.py`, `tools/alchemy_archives.py`, `tools/ark_classes.py`, `tools/ark_vtables.py`, `tools/extract_font_igb.py` |
+| S004 | Platform-neutral controller snapshots and SDL3 backend | partial | `ControllerManager` plus `SdlControllerBackend`; X-Men 2 guest substitution and MUA ARK ABI unverified |
+| S005 | Standalone viewers and dump tool inspect assets without a game port | verified | `apps/x2view`, `meshview`, `flyview`, `tools/igb_dump.c` build on the shared libraries |
+| S006 | IGB meshes decode into vertices, indices, materials, skinning | partial | `igb_scene_load`; complete cross-title validation missing |
+| S007 | Xbox 360 and PS2 texture/raster payloads decode into native images | partial | `src/igb_image.c`; `igb_image_real` compares matching PS2/360 assets when a corpus is present |
+| S008 | Enbaya-compressed animation decodes into native animation | partial | `igb_enbaya_decode`, `igb_enbaya_pose_at`; cross-title semantics unverified |
+| S009 | XMLB assets decode, edit, and round-trip through shared tooling | partial | `tools/xmlb.py --selftest` round-trips byte-identically; unmeasured variants remain |
+| S010 | FB/WAD, ARK class/vtable, font, and conversation formats have reusable tools | partial | Each tool's coverage is evidence-driven and incomplete |
+| S011 | X-Men 2 gameplay links and executes a conformed shared contract | missing | Its CMake authority links none of `alchemy`, `alchemy_input`, `alchemy_input_sdl`; `alchemy::input` is the first candidate, DirectInput stays the oracle |
+| S012 | MUA gameplay links and executes proven shared contracts | missing | No resolver, pin, build edge, or call path; deferred until every X-Men 2 goal is verified |
+| S013 | Configuration, diagnostics, language, and dependency boundaries are mechanically enforced | verified | `structure`, `cpp_format`, `cpp_tidy`, `python_lint` reject environment reads, direct output, title vocabulary, consumer edges, and source growth |
+| S014 | Each consumer resolves one immutable revision for tools and runtime targets | partial | X-Men 2 pins the repository for offline tooling only; MUA has no resolver or pin |
