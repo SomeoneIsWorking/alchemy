@@ -95,6 +95,9 @@ typedef struct {
 } igb_image;
 
 int igb_open(igb *f, const char *path);
+/* Parses `size` bytes from malloc; `f` owns them from this call, even on
+ * failure, and igb_close frees them. */
+int igb_open_bytes(igb *f, uint8_t *data, size_t size);
 void igb_close(igb *f);
 const igb_object *igb_object_by_index(const igb *f, int index);
 const igb_fieldval *igb_object_field(const igb_object *obj, uint16_t slot);

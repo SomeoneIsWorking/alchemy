@@ -169,31 +169,26 @@ int igb_open(igb *f, const char *path) {
   if (!fp) {
     return -1;
   }
-  if (fseek(fp, 0, SEEK_END) != 0) {
-    fclose(fp);
-    return -1;
-  }
-  long sz = ftell(fp);
-  if (sz < ALCHEMY_IGB_HEADER_SIZE) {
-    fclose(fp);
-    return -1;
-  }
+  long sz = fseek(fp, 0, SEEK_END) == 0 ? ftell(fp) : -1;
+  uint8_t *buf = sz > 0 ? malloc((size_t)sz) : NULL;
   rewind(fp);
-  uint8_t *buf = malloc((size_t)sz);
-  if (!buf) {
-    fclose(fp);
-    return -1;
-  }
-  if (fread(buf, 1, (size_t)sz, fp) != (size_t)sz) {
-    free(buf);
-    fclose(fp);
-    return -1;
-  }
+  size_t got = buf ? fread(buf, 1, (size_t)sz, fp) : 0;
   fclose(fp);
+  if (!buf || got != (size_t)sz) {
+    free(buf);
+    return -1;
+  }
+  return igb_open_bytes(f, buf, (size_t)sz);
+}
 
+int igb_open_bytes(igb *f, uint8_t *buf, size_t size) {
+  if (size < ALCHEMY_IGB_HEADER_SIZE) {
+    free(buf);
+    return -1;
+  }
   memset(f, 0, sizeof(*f));
   f->data = buf;
-  f->size = (size_t)sz;
+  f->size = size;
 
   uint32_t magic_le = rd_u32(buf + 0x28, 1);
   uint32_t magic_be = rd_u32(buf + 0x28, 0);
