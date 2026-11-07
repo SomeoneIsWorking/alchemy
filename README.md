@@ -126,3 +126,5 @@ semantic payloads remain unsupported until a real corpus proves their layout.
 
 Extracted from the X-Men Legends II port (`pc/xmen2`) on 2026-08-18. Commit
 history for these files before that date lives in that repository.
+
+Built with AI assistance (Claude and other LLMs).
