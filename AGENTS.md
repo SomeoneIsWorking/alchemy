@@ -90,3 +90,5 @@ deferral lifts and recovers its own guest ABI first.
   `file_io`, `igb_image`, `scene_options`, `viewer_config`, `input`,
   `sdl_input`, `xmlb_roundtrip`, ...; `*_real` need the real corpus).
 - Do not add tests of the verifier, the structure check, or other tooling.
+
+- Per-operation cost metering is missing and needs building: Lucent `lucent::perf` scopes (`OperationMeter`) reporting the run-end lines of the re-harness `perf-units` skill.
